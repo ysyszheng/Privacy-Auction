@@ -1,3 +1,8 @@
+# personal gitignore
+.DS_Store
+.cache/
+build/
+
 # Prerequisites
 *.d
 
