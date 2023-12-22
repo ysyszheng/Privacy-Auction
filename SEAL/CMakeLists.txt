@@ -3,10 +3,13 @@ project(SEAL)
 message("Project Name: ${PROJECT_NAME}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_TOOLCHAIN_FILE "/Users/yusen/opt/vcpkg/scripts/buildsystems/vcpkg.cmake")
-set(OPENSSL_ROOT_DIR "/Users/yusen/opt/vcpkg/installed/x64-osx/")
+SET(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -Wextra")
+set(VCPKG_ROOT "/Users/yusen/opt/vcpkg")
+set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+set(OPENSSL_ROOT_DIR "${VCPKG_ROOT}/installed/x64-osx/")
 
-find_package(cryptopp CONFIG REQUIRED HINTS "/Users/yusen/opt/vcpkg/installed/x64-osx/share/cryptopp/")
+find_package(cryptopp CONFIG REQUIRED HINTS "${VCPKG_ROOT}/installed/x64-osx/share/cryptopp/")
 find_package(OpenSSL REQUIRED)
 
 add_executable(${PROJECT_NAME}
@@ -20,3 +23,5 @@ target_link_libraries(${PROJECT_NAME}
     OpenSSL::SSL
     OpenSSL::Crypto
 )
+
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_11)
