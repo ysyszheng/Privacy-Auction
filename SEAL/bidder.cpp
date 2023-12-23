@@ -228,13 +228,13 @@ void Bidder::GenNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   BN_mod_mul(ch1, ch1, alpha, order, ctx); // ch1 = alpha*(ch-ch2)
   BN_mod_sub(rho1, r1, ch1, order, ctx);   // rho1 = r1-alpha*(ch-ch2)
 
-  proof.rho1 = rho1;
-  proof.rho2 = rho2;
-  proof.ch2 = ch2;
   proof.eps11 = eps11;
   proof.eps12 = eps12;
   proof.eps21 = eps21;
   proof.eps22 = eps22;
+  proof.rho1 = rho1;
+  proof.rho2 = rho2;
+  proof.ch2 = ch2;
 }
 
 bool Bidder::VerNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
@@ -493,14 +493,16 @@ size_t Bidder::roundThree(const std::vector<RoundTwoPub> pubs, size_t step) {
  */
 bool Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) {
   bool ret = true;
+  BN_CTX *ctx = BN_CTX_new();
   for (size_t i = 0; i < pubs.size(); ++i) {
-    for (size_t j = 0; j < c_; ++j) {
-      // FIXME: verification failed
-      ret &= VerNIZKPoKDLog(pubs[i][j].pokdlogA, pubs[i][j].A, i, NULL);
-      ret &= VerNIZKPoKDLog(pubs[i][j].pokdlogB, pubs[i][j].B, i, NULL);
-      // FIXME: segmentation fault
-      ret &= VerNIZKPoWFCom(pubs[i][j].powfcom, pubs[i][j].phi, pubs[i][j].A,
-                            pubs[i][j].B, i, NULL);
+    if (i != id_) {
+      for (size_t j = 0; j < c_; ++j) {
+        // FIXME: verification failed
+        ret &= VerNIZKPoKDLog(pubs[i][j].pokdlogA, pubs[i][j].A, i, ctx);
+        ret &= VerNIZKPoKDLog(pubs[i][j].pokdlogB, pubs[i][j].B, i, ctx);
+        ret &= VerNIZKPoWFCom(pubs[i][j].powfcom, pubs[i][j].phi, pubs[i][j].A,
+                              pubs[i][j].B, i, ctx);
+      }
     }
   }
   return ret;
@@ -515,9 +517,12 @@ bool Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) {
  */
 bool Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs) {
   bool ret = true;
+  BN_CTX *ctx = BN_CTX_new();
   for (size_t i = 0; i < pubs.size(); ++i) {
-    ret &= VerNIZKPoKDLog(pubs[i].pokdlogX, pubs[i].X, i, NULL);
-    ret &= VerNIZKPoKDLog(pubs[i].pokdlogR, pubs[i].R, i, NULL);
+    if (i != id_) {
+      ret &= VerNIZKPoKDLog(pubs[i].pokdlogX, pubs[i].X, i, ctx);
+      ret &= VerNIZKPoKDLog(pubs[i].pokdlogR, pubs[i].R, i, ctx);
+    }
   }
   return ret;
 }
