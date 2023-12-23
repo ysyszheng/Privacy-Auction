@@ -496,10 +496,10 @@ bool Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) {
   for (size_t i = 0; i < pubs.size(); ++i) {
     for (size_t j = 0; j < c_; ++j) {
       // FIXME: verification failed
-      ret |= VerNIZKPoKDLog(pubs[i][j].pokdlogA, pubs[i][j].A, i, NULL);
-      ret |= VerNIZKPoKDLog(pubs[i][j].pokdlogB, pubs[i][j].B, i, NULL);
+      ret &= VerNIZKPoKDLog(pubs[i][j].pokdlogA, pubs[i][j].A, i, NULL);
+      ret &= VerNIZKPoKDLog(pubs[i][j].pokdlogB, pubs[i][j].B, i, NULL);
       // FIXME: segmentation fault
-      ret |= VerNIZKPoWFCom(pubs[i][j].powfcom, pubs[i][j].phi, pubs[i][j].A,
+      ret &= VerNIZKPoWFCom(pubs[i][j].powfcom, pubs[i][j].phi, pubs[i][j].A,
                             pubs[i][j].B, i, NULL);
     }
   }
@@ -516,8 +516,8 @@ bool Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) {
 bool Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs) {
   bool ret = true;
   for (size_t i = 0; i < pubs.size(); ++i) {
-    ret |= VerNIZKPoKDLog(pubs[i].pokdlogX, pubs[i].X, i, NULL);
-    ret |= VerNIZKPoKDLog(pubs[i].pokdlogR, pubs[i].R, i, NULL);
+    ret &= VerNIZKPoKDLog(pubs[i].pokdlogX, pubs[i].X, i, NULL);
+    ret &= VerNIZKPoKDLog(pubs[i].pokdlogR, pubs[i].R, i, NULL);
   }
   return ret;
 }
