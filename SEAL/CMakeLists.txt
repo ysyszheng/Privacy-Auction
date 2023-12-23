@@ -3,7 +3,7 @@ project(SEAL)
 message("Project Name: ${PROJECT_NAME}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-SET(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -Wextra")
 set(VCPKG_ROOT "/Users/yusen/opt/vcpkg")
 set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
@@ -25,3 +25,20 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_11)
+
+add_executable(SEAL_TEST
+    test.cpp
+    bidder.cpp
+)
+
+target_link_libraries(SEAL_TEST
+    PRIVATE
+    cryptopp::cryptopp
+    OpenSSL::SSL
+    OpenSSL::Crypto
+)
+
+target_compile_features(SEAL_TEST PRIVATE cxx_std_11)
+
+# enable_testing()
+# add_test(NAME TEST COMMAND TEST)

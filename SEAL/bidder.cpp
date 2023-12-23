@@ -5,11 +5,12 @@ using namespace std;
 /**
  * @brief Construct a new Bidder object, with a c-bit random bid
  *
- * @param id ID of bidder
+ * @param id ID of bidder, should start from 0
  * @param c Number of bits in bid
  */
 Bidder::Bidder(size_t id, size_t c)
-    : id_(id), c_(c), maxBid(0), junctionFlag(false), commitments(c), keys(c) {
+    : id_(id), c_(c), maxBid(0), junctionFlag(false), prevDecidingBit(1),
+      commitments(c), keys(c) {
   assert(c <= C_MAX);
 
   random_device rd;
@@ -18,8 +19,9 @@ Bidder::Bidder(size_t id, size_t c)
   bid_ = dist(gen);
   binaryBidStr = bitset<C_MAX>(bid_).to_string().substr(C_MAX - c_);
 
-  PRINT_MESSAGE("Construct Bidder: " << id_ << "\nBid: " << bid_
-                                     << ", Bid (in binary): " << binaryBidStr)
+  // PRINT_MESSAGE("Construct Bidder: " << id_ << "\nBid: " << bid_
+  //                                    << ", Bid (in binary): " <<
+  //                                    binaryBidStr);
 
   if (NULL == (group = EC_GROUP_new_by_curve_name(NID_SECP256K1))) {
     ERR_print_errors_fp(stderr);
@@ -31,6 +33,13 @@ Bidder::Bidder(size_t id, size_t c)
     ERR_print_errors_fp(stderr);
   }
 }
+
+/**
+ * @brief Returns the ID of the bidder
+ *
+ * @return size_t
+ */
+size_t Bidder::getId() { return id_; }
 
 /**
  * @brief Returns the bid of the bidder
@@ -50,10 +59,10 @@ size_t Bidder::getMaxBid() { return maxBid; }
  * @brief In the Commit phase, bidders commit their bids to the public
  * bulletin board, as well as their NIZK
  *
- * @return std::vector<CommitmentPub>
+ * @return CommitmentPub, i.e. std::vector<CommitmentPerBit>
  */
-std::vector<CommitmentPub> Bidder::commitBid() {
-  std::vector<CommitmentPub> pubs;
+CommitmentPub Bidder::commitBid() {
+  CommitmentPub pubs(c_);
 
   for (size_t i = 0; i < c_; ++i) {
     int bit;
@@ -133,53 +142,42 @@ RoundOnePub Bidder::roundOne(size_t step) {
  * @param step Current step of the auction, starting from 0
  * @return RoundTwoPub
  */
-RoundTwoPub Bidder::roundTwo(std::vector<RoundOnePub> pubs, size_t step) {
-  assert(pubs.size() == c_);
-
+RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
   RoundTwoPub pub;
   BN_CTX *ctx = BN_CTX_new();
   EC_POINT *b = EC_POINT_new(group);
   int bit = binaryBidStr[step] - '0';
-  int prevDecidingBit = binaryBidStr[prevDecidingStep] - '0';
 
   if ((!junctionFlag && bit == 0) ||
       (junctionFlag && (bit == 0 || prevDecidingBit == 0))) {
-    EC_POINT *sum1 = EC_POINT_new(group);
-    EC_POINT *sum2 = EC_POINT_new(group);
-    EC_POINT *temp = EC_POINT_new(group);
+    // PRINT_MESSAGE("Bidder " << id_ << " encodes bit 0 in step " << step)
     EC_POINT *firstHalfSum = EC_POINT_new(group);
     EC_POINT *secondHalfSum = EC_POINT_new(group);
     EC_POINT *Y = EC_POINT_new(group);
 
     EC_POINT_set_to_infinity(group, firstHalfSum);
     for (size_t i = 0; i < id_; ++i) {
-      EC_POINT_add(group, temp, firstHalfSum, pubs[i].X, ctx);
-      EC_POINT_copy(firstHalfSum, temp);
+      EC_POINT_add(group, firstHalfSum, firstHalfSum, pubs[i].X, ctx);
     }
 
     EC_POINT_set_to_infinity(group, secondHalfSum);
     for (size_t i = id_ + 1; i < pubs.size(); ++i) {
-      EC_POINT_add(group, temp, secondHalfSum, pubs[i].X, ctx);
-      EC_POINT_copy(secondHalfSum, temp);
+      EC_POINT_add(group, secondHalfSum, secondHalfSum, pubs[i].X, ctx);
     }
 
     EC_POINT_invert(group, secondHalfSum, ctx);
     EC_POINT_add(group, Y, firstHalfSum, secondHalfSum, ctx);
     EC_POINT_mul(group, b, NULL, Y, keys[step].x, ctx);
-
-    EC_POINT_free(sum1);
-    EC_POINT_free(sum2);
-    EC_POINT_free(temp);
-    EC_POINT_free(firstHalfSum);
-    EC_POINT_free(secondHalfSum);
   } else { // (!junctionFlag && bit == 1) || (junctionFlag && bit == 1 &&
            // prevDecidingBit == 1))
-    EC_POINT_mul(group, b, NULL, pubs[id_].X, keys[step].r, ctx);
+    // PRINT_MESSAGE("Bidder " << id_ << " encodes bit 1 in step " << step)
+    EC_POINT_mul(group, b, NULL, keys[step].R, keys[step].x, ctx);
   }
 
   pub.b = b;
 
   // TODO: NIZK
+
   return pub;
 }
 
@@ -188,10 +186,9 @@ RoundTwoPub Bidder::roundTwo(std::vector<RoundOnePub> pubs, size_t step) {
  *
  * @param pubs RoundTwoPub in order of bidders id, including self
  * @param step Current step of the auction, starting from 0
+ * @return size_t, 1 if winning bidder encodes bit 1 in this step, 0 otherwise
  */
-size_t Bidder::roundThree(std::vector<RoundTwoPub> pubs, size_t step) {
-  assert(pubs.size() == c_);
-
+size_t Bidder::roundThree(const std::vector<RoundTwoPub> pubs, size_t step) {
   BN_CTX *ctx = BN_CTX_new();
   EC_POINT *sum = EC_POINT_new(group);
 
@@ -200,10 +197,38 @@ size_t Bidder::roundThree(std::vector<RoundTwoPub> pubs, size_t step) {
   }
 
   if (!EC_POINT_is_at_infinity(group, sum)) {
+    // exist bidder encodes bit 1 in this step
     junctionFlag = true;
     prevDecidingStep = step;
+    prevDecidingBit &= (binaryBidStr[step] - '0');
     maxBid |= (1 << (c_ - step - 1));
     return 1;
   }
   return 0;
 }
+
+/**
+ * @brief Verify the commitments of all bidders
+ *
+ * @param pubs CommitmentPub in order of bidders id, including self
+ * @return int, 0 if verification succeeds, 1 otherwise
+ */
+int Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) {}
+
+/**
+ * @brief Verify the Round 1 messages of all bidders
+ *
+ * @param pubs RoundOnePub in order of bidders id, including self
+ * @param step Current step of the auction, starting from 0
+ * @return int, 0 if verification succeeds, 1 otherwise
+ */
+int Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs, size_t step) {}
+
+/**
+ * @brief Verify the Round 2 messages of all bidders
+ *
+ * @param pubs RoundTwoPub in order of bidders id, including self
+ * @param step Current step of the auction, starting from 0
+ * @return int, 0 if verification succeeds, 1 otherwise
+ */
+int Bidder::verifyRoundTwo(std::vector<RoundTwoPub> pubs, size_t step) {}

@@ -24,17 +24,18 @@ class Bidder {
 public:
   Bidder(size_t, size_t);
 
+  size_t getId();
   size_t getBid();
   size_t getMaxBid();
 
-  std::vector<CommitmentPub> commitBid();
+  CommitmentPub commitBid();
   RoundOnePub roundOne(size_t);
-  RoundTwoPub roundTwo(std::vector<RoundOnePub>, size_t);
-  size_t roundThree(std::vector<RoundTwoPub>, size_t);
+  RoundTwoPub roundTwo(const std::vector<RoundOnePub>, size_t);
+  size_t roundThree(const std::vector<RoundTwoPub>, size_t);
 
-  //   void verifyCommitment(std::vector<CommitmentPub>, size_t);
-  //   void verifyRoundOne(std::vector<RoundOnePub>, size_t);
-  //   void verifyRoundTwo(std::vector<RoundTwoPub>, size_t);
+  int verifyCommitment(std::vector<CommitmentPub>);
+  int verifyRoundOne(std::vector<RoundOnePub>, size_t);
+  int verifyRoundTwo(std::vector<RoundTwoPub>, size_t);
 
 private:
   struct Commitment {
@@ -60,6 +61,7 @@ private:
   std::string binaryBidStr;
   bool junctionFlag; // whether reached junction
   size_t prevDecidingStep;
+  size_t prevDecidingBit; // bit d in paper
 
   EC_GROUP *group;
   const EC_POINT *generator;
