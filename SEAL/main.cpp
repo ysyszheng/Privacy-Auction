@@ -15,6 +15,7 @@ int main(int argc, char *argv[]) {
   size_t c = std::stoul(argv[2]);
   std::vector<size_t> bids;
   std::vector<Bidder> bidders;
+  std::vector<CommitmentPub> commitments;
   std::vector<RoundOnePub> roundOnePubs;
   std::vector<RoundTwoPub> roundTwoPubs;
 
@@ -34,7 +35,15 @@ int main(int argc, char *argv[]) {
 
   // Commit phase
   for (size_t j = 0; j < n; ++j) {
-    bidders[j].commitBid();
+    commitments.push_back(bidders[j].commitBid());
+  }
+
+  // Verify commitments
+  for (size_t j = 0; j < n; ++j) {
+    if (!bidders[j].verifyCommitment(commitments)) {
+      PRINT_ERROR("Failed to verify commitment of bidder " << j);
+      return 1;
+    }
   }
 
   // Auction phase

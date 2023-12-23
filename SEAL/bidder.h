@@ -16,6 +16,7 @@
 #include <openssl/err.h>
 #include <openssl/obj_mac.h>
 #include <openssl/rand.h>
+#include <openssl/sha.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -34,7 +35,7 @@ public:
   size_t roundThree(const std::vector<RoundTwoPub>, size_t);
 
   bool verifyCommitment(std::vector<CommitmentPub>);
-  bool verifyRoundOne(std::vector<RoundOnePub>, size_t);
+  bool verifyRoundOne(std::vector<RoundOnePub>);
   bool verifyRoundTwo(std::vector<RoundTwoPub>, size_t);
 
 private:
@@ -63,12 +64,21 @@ private:
   size_t prevDecidingStep;
   size_t prevDecidingBit; // bit d in paper
 
-  EC_GROUP *group;
+  const EC_GROUP *group;
   const EC_POINT *generator;
   const BIGNUM *order;
 
   std::vector<Commitment> commitments;
   std::vector<Key> keys;
+
+  void GenNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, const BIGNUM *,
+                      BN_CTX *);
+  void GenNIZKPoWFCom(NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
+                      const EC_POINT *, const BIGNUM *, BN_CTX *);
+
+  bool VerNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, size_t, BN_CTX *);
+  bool VerNIZKPoWFCom(NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
+                      const EC_POINT *, size_t, BN_CTX *);
 };
 
 #endif /* BIDDER_H */
