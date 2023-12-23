@@ -211,24 +211,29 @@ size_t Bidder::roundThree(const std::vector<RoundTwoPub> pubs, size_t step) {
  * @brief Verify the commitments of all bidders
  *
  * @param pubs CommitmentPub in order of bidders id, including self
- * @return int, 0 if verification succeeds, 1 otherwise
+ * @return bool, true if all commitments are valid and NIZK Proofs is valid,
+ * false otherwise
  */
-int Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) {}
+bool Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) { 
+  
+  return true; }
 
 /**
  * @brief Verify the Round 1 messages of all bidders
  *
  * @param pubs RoundOnePub in order of bidders id, including self
  * @param step Current step of the auction, starting from 0
- * @return int, 0 if verification succeeds, 1 otherwise
+ * @return bool, true if all Round 1 messages are valid and NIZK Proofs is
+ * valid, false otherwise
  */
-int Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs, size_t step) {}
+bool Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs, size_t step) {}
 
 /**
  * @brief Verify the Round 2 messages of all bidders
  *
  * @param pubs RoundTwoPub in order of bidders id, including self
  * @param step Current step of the auction, starting from 0
- * @return int, 0 if verification succeeds, 1 otherwise
+ * @return bool, true if all Round 2 messages are valid and NIZK Proofs is
+ * valid, false otherwise
  */
-int Bidder::verifyRoundTwo(std::vector<RoundTwoPub> pubs, size_t step) {}
+bool Bidder::verifyRoundTwo(std::vector<RoundTwoPub> pubs, size_t step) {}

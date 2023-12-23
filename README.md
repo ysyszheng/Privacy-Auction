@@ -16,6 +16,6 @@ cmake --build .
 References
 -----
 
-* [`SEAL`](./SEAL/): SEAL: Sealed-Bid Auction without Auctioneers
-* [`SAPRA`](./SAPRA/): Secure Auctions in the Presence of Rational Adversaries
+* SEAL: Sealed-Bid Auction without Auctioneers [[iacr]](https://eprint.iacr.org/2019/1332)
+* Secure Auctions in the Presence of Rational Adversaries [[iacr]](https://eprint.iacr.org/2022/1541)
 * [https://wiki.openssl.org/index.php/Elliptic_Curve_Cryptography](https://wiki.openssl.org/index.php/Elliptic_Curve_Cryptography)

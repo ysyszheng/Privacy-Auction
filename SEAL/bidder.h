@@ -33,9 +33,9 @@ public:
   RoundTwoPub roundTwo(const std::vector<RoundOnePub>, size_t);
   size_t roundThree(const std::vector<RoundTwoPub>, size_t);
 
-  int verifyCommitment(std::vector<CommitmentPub>);
-  int verifyRoundOne(std::vector<RoundOnePub>, size_t);
-  int verifyRoundTwo(std::vector<RoundTwoPub>, size_t);
+  bool verifyCommitment(std::vector<CommitmentPub>);
+  bool verifyRoundOne(std::vector<RoundOnePub>, size_t);
+  bool verifyRoundTwo(std::vector<RoundTwoPub>, size_t);
 
 private:
   struct Commitment {
