@@ -38,11 +38,12 @@ int main(int argc, char *argv[]) {
     commitments.push_back(bidders[j].commitBid());
   }
 
+  PRINT_MESSAGE("Finished commitment.");
+
   // Verify commitments
   for (size_t j = 0; j < n; ++j) {
     if (!bidders[j].verifyCommitment(commitments)) {
-      PRINT_ERROR("Failed to verify commitment of bidder " << j);
-      return 1;
+      PRINT_ERROR("Bidder " << j << " failed to verify commitments.");
     }
   }
 
@@ -56,6 +57,13 @@ int main(int argc, char *argv[]) {
     }
 
     for (size_t j = 0; j < n; ++j) {
+      if (!bidders[j].verifyRoundOne(roundOnePubs)) {
+        PRINT_ERROR("Bidder " << j << " failed to verify round one in step "
+                              << i << ".");
+      }
+    }
+
+    for (size_t j = 0; j < n; ++j) {
       roundTwoPubs.push_back(bidders[j].roundTwo(roundOnePubs, i));
     }
 
@@ -64,11 +72,13 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  PRINT_MESSAGE("Finished auction.\nMax bid: "
-                << bidders[0].getMaxBid() << ", Max bid (in binary): "
-                << std::bitset<C_MAX>(bidders[0].getMaxBid())
-                       .to_string()
-                       .substr(C_MAX - c));
+  // test
+  for (size_t i = 0; i < n; ++i) {
+    if (bidders[i].getMaxBid() != maxBid) {
+      PRINT_ERROR("Bidder " << i << " failed to calculate max bid.");
+    }
+  }
+  PRINT_MESSAGE("Finished auction.");
 
   return 0;
 }

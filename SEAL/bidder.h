@@ -3,6 +3,7 @@
 
 #include "params.h"
 #include "types.h"
+#include "utils.h"
 #include <cassert>
 #include <cryptopp/cryptlib.h>
 #include <cryptopp/integer.h>
@@ -10,6 +11,7 @@
 #include <cryptopp/secblock.h>
 #include <cryptopp/sha.h>
 #include <cstddef>
+#include <iomanip>
 #include <iostream>
 #include <openssl/bn.h>
 #include <openssl/ec.h>
@@ -71,13 +73,13 @@ private:
   std::vector<Commitment> commitments;
   std::vector<Key> keys;
 
-  void GenNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, const BIGNUM *,
+  void genNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, const BIGNUM *,
                       BN_CTX *);
-  void GenNIZKPoWFCom(NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
+  void genNIZKPoWFCom(NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
                       const EC_POINT *, const BIGNUM *, BN_CTX *);
 
-  bool VerNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, size_t, BN_CTX *);
-  bool VerNIZKPoWFCom(NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
+  bool verNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, size_t, BN_CTX *);
+  bool verNIZKPoWFCom(NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
                       const EC_POINT *, size_t, BN_CTX *);
 };
 

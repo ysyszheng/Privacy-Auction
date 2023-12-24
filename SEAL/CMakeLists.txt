@@ -14,6 +14,7 @@ find_package(OpenSSL REQUIRED)
 
 add_executable(${PROJECT_NAME}
     main.cpp
+    utils.cpp
     bidder.cpp
 )
 

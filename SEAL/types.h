@@ -2,6 +2,10 @@
 #include <openssl/ec.h>
 #include <vector>
 
+typedef struct {
+  // FIXME: not pass pointer, pass by value
+} ENCODER;
+
 /**
  * @brief Non-interactive zero-knowledge proof of knowledge of discrete
  * logarithm

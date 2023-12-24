@@ -1,7 +1,9 @@
 #include "bidder.h"
 #include "params.h"
+#include "utils.h"
 #include <cassert>
 #include <cstddef>
+#include <cstring>
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/sha.h>
@@ -70,7 +72,7 @@ size_t Bidder::getMaxBid() { return maxBid; }
  * @param x x, the discrete logarithm
  * @param ctx BN_CTX
  */
-void Bidder::GenNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
+void Bidder::genNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
                             const BIGNUM *x, BN_CTX *ctx) {
   size_t len;
   unsigned char *hash_input;
@@ -80,18 +82,22 @@ void Bidder::GenNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
   BIGNUM *rho = BN_new(); // hash(g, g^v, g^x, id_), ch in paper
   EC_POINT *g_to_v = EC_POINT_new(group);
 
+  BN_rand_range(v, order);
   EC_POINT_mul(group, g_to_v, v, NULL, NULL, ctx);
 
   len = BN_num_bytes(order);
   hash_input = new unsigned char[3 * len + sizeof(size_t)];
   hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
 
-  EC_POINT_point2oct(group, generator, POINT_CONVERSION_COMPRESSED, hash_input,
-                     len, ctx);
-  EC_POINT_point2oct(group, g_to_v, POINT_CONVERSION_COMPRESSED,
-                     hash_input + len, len, ctx);
-  EC_POINT_point2oct(group, g_to_x, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 2 * len, len, ctx);
+  memcpy(hash_input,
+         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + len,
+         EC_POINT_point2hex(group, g_to_v, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 2 * len,
+         EC_POINT_point2hex(group, g_to_x, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
   memcpy(hash_input + 3 * len, &id_, sizeof(size_t));
 
   SHA256(hash_input, 3 * len + sizeof(size_t), hash_output);
@@ -114,7 +120,7 @@ void Bidder::GenNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
  * @param ctx BN_CTX
  * @return bool, true if proof is valid, false otherwise
  */
-bool Bidder::VerNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
+bool Bidder::verNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
                             BN_CTX *ctx) {
   size_t len;
   unsigned char *hash_input;
@@ -127,18 +133,20 @@ bool Bidder::VerNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
   hash_input = new unsigned char[3 * len + sizeof(size_t)];
   hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
 
-  EC_POINT_point2oct(group, generator, POINT_CONVERSION_COMPRESSED, hash_input,
-                     len, ctx);
-  EC_POINT_point2oct(group, proof.eps, POINT_CONVERSION_COMPRESSED,
-                     hash_input + len, len, ctx);
-  EC_POINT_point2oct(group, X, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 2 * len, len, ctx);
+  memcpy(hash_input,
+         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + len,
+         EC_POINT_point2hex(group, proof.eps, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 2 * len,
+         EC_POINT_point2hex(group, X, POINT_CONVERSION_COMPRESSED, ctx), len);
   memcpy(hash_input + 3 * len, &id, sizeof(size_t));
 
   SHA256(hash_input, 3 * len + sizeof(size_t), hash_output);
   BN_bin2bn(hash_output, SHA256_DIGEST_LENGTH, h);
 
-  // check if g^rho * X^h == eps
+  // check: g^rho * X^h == eps
   EC_POINT_mul(group, g_to_rho, proof.rho, NULL, NULL, ctx);
   EC_POINT_mul(group, X_to_h, NULL, X, h, ctx);
   EC_POINT_add(group, X_to_h, X_to_h, g_to_rho, ctx);
@@ -160,7 +168,7 @@ bool Bidder::VerNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
  * @param alpha alpha
  * @param ctx BN_CTX
  */
-void Bidder::GenNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
+void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
                             const EC_POINT *A, const EC_POINT *B,
                             const BIGNUM *alpha, BN_CTX *ctx) {
   size_t len;
@@ -203,22 +211,27 @@ void Bidder::GenNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   hash_input = new unsigned char[8 * len + sizeof(size_t)];
   hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
 
-  EC_POINT_point2oct(group, generator, POINT_CONVERSION_COMPRESSED, hash_input,
-                     len, ctx);
-  EC_POINT_point2oct(group, eps11, POINT_CONVERSION_COMPRESSED,
-                     hash_input + len, len, ctx);
-  EC_POINT_point2oct(group, eps12, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 2 * len, len, ctx);
-  EC_POINT_point2oct(group, eps21, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 3 * len, len, ctx);
-  EC_POINT_point2oct(group, eps22, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 4 * len, len, ctx);
-  EC_POINT_point2oct(group, phi, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 5 * len, len, ctx);
-  EC_POINT_point2oct(group, A, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 6 * len, len, ctx);
-  EC_POINT_point2oct(group, B, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 7 * len, len, ctx);
+  memcpy(hash_input,
+         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + len,
+         EC_POINT_point2hex(group, eps11, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 2 * len,
+         EC_POINT_point2hex(group, eps12, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 3 * len,
+         EC_POINT_point2hex(group, eps21, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 4 * len,
+         EC_POINT_point2hex(group, eps22, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 5 * len,
+         EC_POINT_point2hex(group, phi, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 6 * len,
+         EC_POINT_point2hex(group, A, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 7 * len,
+         EC_POINT_point2hex(group, B, POINT_CONVERSION_COMPRESSED, ctx), len);
   memcpy(hash_input + 8 * len, &id_, sizeof(size_t));
 
   SHA256(hash_input, 8 * len + sizeof(size_t), hash_output);
@@ -237,9 +250,10 @@ void Bidder::GenNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   proof.ch2 = ch2;
 }
 
-bool Bidder::VerNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
+bool Bidder::verNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
                             const EC_POINT *A, const EC_POINT *B, size_t id,
                             BN_CTX *ctx) {
+  bool ret;
   size_t len;
   unsigned char *hash_input;
   unsigned char *hash_output;
@@ -248,26 +262,36 @@ bool Bidder::VerNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   EC_POINT *tmp1 = EC_POINT_new(group);
   EC_POINT *tmp2 = EC_POINT_new(group);
 
+  ret = true;
   len = BN_num_bytes(order);
   hash_input = new unsigned char[8 * len + sizeof(size_t)];
   hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
 
-  EC_POINT_point2oct(group, generator, POINT_CONVERSION_COMPRESSED, hash_input,
-                     len, ctx);
-  EC_POINT_point2oct(group, proof.eps11, POINT_CONVERSION_COMPRESSED,
-                     hash_input + len, len, ctx);
-  EC_POINT_point2oct(group, proof.eps12, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 2 * len, len, ctx);
-  EC_POINT_point2oct(group, proof.eps21, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 3 * len, len, ctx);
-  EC_POINT_point2oct(group, proof.eps22, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 4 * len, len, ctx);
-  EC_POINT_point2oct(group, phi, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 5 * len, len, ctx);
-  EC_POINT_point2oct(group, A, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 6 * len, len, ctx);
-  EC_POINT_point2oct(group, B, POINT_CONVERSION_COMPRESSED,
-                     hash_input + 7 * len, len, ctx);
+  memcpy(hash_input,
+         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(
+      hash_input + len,
+      EC_POINT_point2hex(group, proof.eps11, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 2 * len,
+      EC_POINT_point2hex(group, proof.eps12, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 3 * len,
+      EC_POINT_point2hex(group, proof.eps21, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 4 * len,
+      EC_POINT_point2hex(group, proof.eps22, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(hash_input + 5 * len,
+         EC_POINT_point2hex(group, phi, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 6 * len,
+         EC_POINT_point2hex(group, A, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 7 * len,
+         EC_POINT_point2hex(group, B, POINT_CONVERSION_COMPRESSED, ctx), len);
   memcpy(hash_input + 8 * len, &id, sizeof(size_t));
 
   SHA256(hash_input, 8 * len + sizeof(size_t), hash_output);
@@ -282,17 +306,25 @@ bool Bidder::VerNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   if (EC_POINT_cmp(group, tmp2, proof.eps11, ctx) != 0) {
     PRINT_ERROR("NIZKPoWFCom verification failed for bidder " << id
                                                               << ": check 1");
-    return false;
+    ret = false;
   }
 
   // check 2: B^rho1 * phi^ch1 == eps12
-  EC_POINT_mul(group, tmp1, NULL, B, proof.rho1, ctx); // tmp1 = g^rho1
-  EC_POINT_mul(group, tmp2, NULL, phi, ch1, ctx);      // tmp2 = A^ch1
-  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx);          // tmp2 = g^rho1 * A^ch1
+  EC_POINT_mul(group, tmp1, NULL, B, proof.rho1, ctx); // tmp1 = B^rho1
+  EC_POINT_mul(group, tmp2, NULL, phi, ch1, ctx);      // tmp2 = phi^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = B^rho1 * phi^ch1
   if (EC_POINT_cmp(group, tmp2, proof.eps12, ctx) != 0) {
+    PRINT_DEBUG(
+        "B = " << EC_POINT_point2hex(group, B, POINT_CONVERSION_COMPRESSED, ctx)
+               << "\nrho1 = " << BN_bn2hex(proof.rho1) << "\nphi = "
+               << EC_POINT_point2hex(group, phi, POINT_CONVERSION_COMPRESSED,
+                                     ctx)
+               << "\nch2 = " << BN_bn2hex(proof.ch2) << "\neps12 = "
+               << EC_POINT_point2hex(group, proof.eps12,
+                                     POINT_CONVERSION_COMPRESSED, ctx));
     PRINT_ERROR("NIZKPoWFCom verification failed for bidder " << id
                                                               << ": check 2");
-    return false;
+    ret = false;
   }
 
   // check 3: g^rho2 * A^ch2 == eps21
@@ -302,7 +334,7 @@ bool Bidder::VerNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   if (EC_POINT_cmp(group, tmp2, proof.eps21, ctx) != 0) {
     PRINT_ERROR("NIZKPoWFCom verification failed for bidder " << id
                                                               << ": check 3");
-    return false;
+    ret = false;
   }
 
   // check 4: B^rho2 * (phi/g)^ch2 == eps22
@@ -315,10 +347,10 @@ bool Bidder::VerNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   if (EC_POINT_cmp(group, tmp2, proof.eps22, ctx) != 0) {
     PRINT_ERROR("NIZKPoWFCom verification failed for bidder " << id
                                                               << ": check 4");
-    return false;
+    ret = false;
   }
 
-  return true;
+  return ret;
 }
 
 /**
@@ -331,19 +363,19 @@ CommitmentPub Bidder::commitBid() {
   CommitmentPub pubs(c_);
   int bit;
 
-  BN_CTX *ctx = BN_CTX_new();
-  BIGNUM *bit_value = BN_new();
-
-  BIGNUM *alpha = BN_new();
-  BIGNUM *beta = BN_new();
-  BIGNUM *alpha_mul_beta = BN_new();
-
-  EC_POINT *commitmentPhi = EC_POINT_new(group);
-  EC_POINT *commitmentA = EC_POINT_new(group);
-  EC_POINT *commitmentB = EC_POINT_new(group);
-
   for (size_t i = 0; i < c_; ++i) {
     // Commitment of i-th bit of bid_
+    BN_CTX *ctx = BN_CTX_new();
+    BIGNUM *bit_value = BN_new();
+
+    BIGNUM *alpha = BN_new();
+    BIGNUM *beta = BN_new();
+    BIGNUM *alpha_mul_beta = BN_new();
+
+    EC_POINT *commitmentPhi = EC_POINT_new(group);
+    EC_POINT *commitmentA = EC_POINT_new(group);
+    EC_POINT *commitmentB = EC_POINT_new(group);
+
     bit = binaryBidStr[i] - '0';
     BN_set_word(bit_value, bit);
 
@@ -367,15 +399,69 @@ CommitmentPub Bidder::commitBid() {
     pubs[i].B = commitmentB;
 
     // Generate NIZKoKDLog
-    GenNIZKPoKDLog(pubs[i].pokdlogA, commitmentA, alpha, ctx);
-    GenNIZKPoKDLog(pubs[i].pokdlogB, commitmentB, beta, ctx);
+    genNIZKPoKDLog(pubs[i].pokdlogA, commitmentA, alpha, ctx);
+    genNIZKPoKDLog(pubs[i].pokdlogB, commitmentB, beta, ctx);
 
     // Generate NIZKoWFCom
-    GenNIZKPoWFCom(pubs[i].powfcom, commitmentPhi, commitmentA, commitmentB,
+    genNIZKPoWFCom(pubs[i].powfcom, commitmentPhi, commitmentA, commitmentB,
                    alpha, ctx);
+    PRINT_DEBUG("Commitment of bit "
+                << i << " of bidder " << id_ << ":\n"
+                << "phi = "
+                << EC_POINT_point2hex(group, commitmentPhi,
+                                      POINT_CONVERSION_COMPRESSED, ctx)
+                << "\nA = "
+                << EC_POINT_point2hex(group, commitmentA,
+                                      POINT_CONVERSION_COMPRESSED, ctx)
+                << "\nB = "
+                << EC_POINT_point2hex(group, commitmentB,
+                                      POINT_CONVERSION_COMPRESSED, ctx)
+                << "\nrho1 = " << BN_bn2hex(pubs[i].powfcom.rho1)
+                << "\nch2 = " << BN_bn2hex(pubs[i].powfcom.ch2) << "\neps12 = "
+                << EC_POINT_point2hex(group, pubs[i].powfcom.eps12,
+                                      POINT_CONVERSION_COMPRESSED, ctx));
   }
 
   return pubs;
+}
+
+/**
+ * @brief Verify the commitments of all bidders
+ *
+ * @param pubs CommitmentPub in order of bidders id, including self
+ * @return bool, true if all commitments are valid and NIZK Proofs is valid,
+ * false otherwise
+ */
+bool Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) {
+  bool ret = true;
+  BN_CTX *ctx = BN_CTX_new();
+  for (size_t i = 0; i < pubs.size(); ++i) {
+    if (i != id_) {
+      for (size_t j = 0; j < c_; ++j) {
+        // Verify NIZKoKDLog
+        ret &= verNIZKPoKDLog(pubs[i][j].pokdlogA, pubs[i][j].A, i, ctx);
+        ret &= verNIZKPoKDLog(pubs[i][j].pokdlogB, pubs[i][j].B, i, ctx);
+
+        // Verify NIZKPoWFCom
+        ret &= verNIZKPoWFCom(pubs[i][j].powfcom, pubs[i][j].phi, pubs[i][j].A,
+                              pubs[i][j].B, i, ctx);
+        PRINT_DEBUG(
+            "Verify commitment of bit "
+            << j << " of bidder " << i
+            << ":"
+               "\nB = "
+            << EC_POINT_point2hex(group, pubs[i][j].B,
+                                  POINT_CONVERSION_COMPRESSED, ctx)
+            << "\nrho1 = " << BN_bn2hex(pubs[i][j].powfcom.rho1) << "\nphi = "
+            << EC_POINT_point2hex(group, pubs[i][j].phi,
+                                  POINT_CONVERSION_COMPRESSED, ctx)
+            << "\nch2 = " << BN_bn2hex(pubs[i][j].powfcom.ch2) << "\neps12 = "
+            << EC_POINT_point2hex(group, pubs[i][j].powfcom.eps12,
+                                  POINT_CONVERSION_COMPRESSED, ctx));
+      }
+    }
+  }
+  return ret;
 }
 
 /**
@@ -406,10 +492,29 @@ RoundOnePub Bidder::roundOne(size_t step) {
   pub.R = R;
 
   // Generate NIZKoKDLog
-  GenNIZKPoKDLog(pub.pokdlogX, X, x, ctx);
-  GenNIZKPoKDLog(pub.pokdlogR, R, r, ctx);
+  genNIZKPoKDLog(pub.pokdlogX, X, x, ctx);
+  genNIZKPoKDLog(pub.pokdlogR, R, r, ctx);
 
   return pub;
+}
+
+/**
+ * @brief Verify the Round 1 messages of all bidders
+ *
+ * @param pubs RoundOnePub in order of bidders id, including self
+ * @return bool, true if all Round 1 messages are valid and NIZK Proofs is
+ * valid, false otherwise
+ */
+bool Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs) {
+  bool ret = true;
+  BN_CTX *ctx = BN_CTX_new();
+  for (size_t i = 0; i < pubs.size(); ++i) {
+    if (i != id_) {
+      ret &= verNIZKPoKDLog(pubs[i].pokdlogX, pubs[i].X, i, ctx);
+      ret &= verNIZKPoKDLog(pubs[i].pokdlogR, pubs[i].R, i, ctx);
+    }
+  }
+  return ret;
 }
 
 /**
@@ -459,6 +564,18 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
 }
 
 /**
+ * @brief Verify the Round 2 messages of all bidders
+ *
+ * @param pubs RoundTwoPub in order of bidders id, including self
+ * @param step Current step of the auction, starting from 0
+ * @return bool, true if all Round 2 messages are valid and NIZK Proofs is
+ * valid, false otherwise
+ */
+bool Bidder::verifyRoundTwo(std::vector<RoundTwoPub> pubs, size_t step) {
+  return true;
+}
+
+/**
  * @brief In the Round 3 phase, bidders send their encoded bid bits
  *
  * @param pubs RoundTwoPub in order of bidders id, including self
@@ -482,59 +599,4 @@ size_t Bidder::roundThree(const std::vector<RoundTwoPub> pubs, size_t step) {
     return 1;
   }
   return 0;
-}
-
-/**
- * @brief Verify the commitments of all bidders
- *
- * @param pubs CommitmentPub in order of bidders id, including self
- * @return bool, true if all commitments are valid and NIZK Proofs is valid,
- * false otherwise
- */
-bool Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) {
-  bool ret = true;
-  BN_CTX *ctx = BN_CTX_new();
-  for (size_t i = 0; i < pubs.size(); ++i) {
-    if (i != id_) {
-      for (size_t j = 0; j < c_; ++j) {
-        // FIXME: verification failed
-        ret &= VerNIZKPoKDLog(pubs[i][j].pokdlogA, pubs[i][j].A, i, ctx);
-        ret &= VerNIZKPoKDLog(pubs[i][j].pokdlogB, pubs[i][j].B, i, ctx);
-        ret &= VerNIZKPoWFCom(pubs[i][j].powfcom, pubs[i][j].phi, pubs[i][j].A,
-                              pubs[i][j].B, i, ctx);
-      }
-    }
-  }
-  return ret;
-}
-
-/**
- * @brief Verify the Round 1 messages of all bidders
- *
- * @param pubs RoundOnePub in order of bidders id, including self
- * @return bool, true if all Round 1 messages are valid and NIZK Proofs is
- * valid, false otherwise
- */
-bool Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs) {
-  bool ret = true;
-  BN_CTX *ctx = BN_CTX_new();
-  for (size_t i = 0; i < pubs.size(); ++i) {
-    if (i != id_) {
-      ret &= VerNIZKPoKDLog(pubs[i].pokdlogX, pubs[i].X, i, ctx);
-      ret &= VerNIZKPoKDLog(pubs[i].pokdlogR, pubs[i].R, i, ctx);
-    }
-  }
-  return ret;
-}
-
-/**
- * @brief Verify the Round 2 messages of all bidders
- *
- * @param pubs RoundTwoPub in order of bidders id, including self
- * @param step Current step of the auction, starting from 0
- * @return bool, true if all Round 2 messages are valid and NIZK Proofs is
- * valid, false otherwise
- */
-bool Bidder::verifyRoundTwo(std::vector<RoundTwoPub> pubs, size_t step) {
-  return true;
 }
