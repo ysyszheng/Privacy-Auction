@@ -30,7 +30,8 @@ typedef struct {
   BIGNUM *rho1;
   BIGNUM *rho2;
 
-  BIGNUM *ch2;
+  BIGNUM
+      *ch2; // only send one of ch1 and ch2 to save bandwidth, here we send ch2
 } NIZKPoWFCom;
 
 /**

@@ -67,6 +67,8 @@ int main(int argc, char *argv[]) {
       roundTwoPubs.push_back(bidders[j].roundTwo(roundOnePubs, i));
     }
 
+    // TODO: verify round two
+
     for (size_t j = 0; j < n; ++j) {
       bidders[j].roundThree(roundTwoPubs, i);
     }

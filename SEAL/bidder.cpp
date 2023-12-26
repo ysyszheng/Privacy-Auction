@@ -28,8 +28,7 @@ Bidder::Bidder(size_t id, size_t c)
   binaryBidStr = bitset<C_MAX>(bid_).to_string().substr(C_MAX - c_);
 
   PRINT_MESSAGE("Construct Bidder: " << id_ << "\nBid: " << bid_
-                                     << ", Bid (in binary): " <<
-                                     binaryBidStr);
+                                     << ", Bid (in binary): " << binaryBidStr);
 
   if (NULL == (group = EC_GROUP_new_by_curve_name(NID_SECP256K1))) {
     ERR_print_errors_fp(stderr);
@@ -119,7 +118,8 @@ void Bidder::genNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
  * @param proof NIZKPoKDLog
  * @param X g^x
  * @param ctx BN_CTX
- * @return bool, true if proof is valid, false otherwise
+ * @return true, if proof is valid
+ * @return false, otherwise
  */
 bool Bidder::verNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
                             BN_CTX *ctx) {
@@ -229,7 +229,6 @@ void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
     EC_POINT_mul(group, eps22, NULL, B, r1, ctx); // eps22 = g^(beta*r1)
   }
 
-  // TODO: whether need include ch2 in hash
   len = BN_num_bytes(order);
   hash_input = new unsigned char[8 * len + sizeof(size_t)];
   hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
@@ -281,6 +280,18 @@ void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   proof.ch2 = ch2;
 }
 
+/**
+ * @brief Verify a Non-interactive zero-knowledge proof of well-formedness
+ *
+ * @param proof NIZKPoWFCom
+ * @param phi
+ * @param A
+ * @param B
+ * @param id
+ * @param ctx
+ * @return true
+ * @return false
+ */
 bool Bidder::verNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
                             const EC_POINT *A, const EC_POINT *B, size_t id,
                             BN_CTX *ctx) {
@@ -377,6 +388,375 @@ bool Bidder::verNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
 }
 
 /**
+ * @brief
+ *
+ * @param proof
+ * @param b B in paper
+ * @param X
+ * @param Y
+ * @param R
+ * @param c phi, c, or C in paper
+ * @param A
+ * @param B \bar{B} in paper
+ * @param x
+ * @param alpha
+ * @param bit
+ * @param ctx
+ */
+void Bidder::genNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
+                               const EC_POINT *X, const EC_POINT *Y,
+                               const EC_POINT *R, const EC_POINT *c,
+                               const EC_POINT *A, const EC_POINT *B,
+                               const BIGNUM *x, const BIGNUM *alpha, int bit,
+                               BN_CTX *ctx) {
+  size_t len;
+  unsigned char *hash_input;
+  unsigned char *hash_output;
+
+  BIGNUM *r11 = BN_new(); // or r12, no matter
+  BIGNUM *r12 = BN_new(); // or r22, no matter
+  BIGNUM *rho11 = BN_new();
+  BIGNUM *rho12 = BN_new();
+  BIGNUM *rho21 = BN_new();
+  BIGNUM *rho22 = BN_new();
+  BIGNUM *ch = BN_new();
+  BIGNUM *ch1 = BN_new();
+  BIGNUM *ch2 = BN_new();
+
+  EC_POINT *eps11 = EC_POINT_new(group);
+  EC_POINT *eps12 = EC_POINT_new(group);
+  EC_POINT *eps13 = EC_POINT_new(group);
+  EC_POINT *eps14 = EC_POINT_new(group);
+  EC_POINT *eps21 = EC_POINT_new(group);
+  EC_POINT *eps22 = EC_POINT_new(group);
+  EC_POINT *eps23 = EC_POINT_new(group);
+  EC_POINT *eps24 = EC_POINT_new(group);
+  EC_POINT *tmp = EC_POINT_new(group);
+
+  BN_rand_range(r11, order);
+  BN_rand_range(r12, order);
+
+  if (bit == 0) {
+    BN_rand_range(rho21, order);
+    BN_rand_range(rho22, order);
+    BN_rand_range(ch2, order);
+
+    EC_POINT_mul(group, eps11, r11, NULL, NULL, ctx); // eps11 = g^r11
+
+    EC_POINT_mul(group, eps12, r12, NULL, NULL, ctx); // eps12 = g^r12
+
+    EC_POINT_mul(group, eps13, NULL, Y, r11, ctx); // eps13 = Y^r11
+
+    EC_POINT_mul(group, eps14, NULL, B, r12, ctx); // eps14 = B^r12
+
+    // eps21 = g^rho21 * X^ch2
+    EC_POINT_mul(group, eps21, rho21, NULL, NULL, ctx); // eps21 = g^rho21
+    EC_POINT_mul(group, tmp, NULL, X, ch2, ctx);        // tmp = X^ch2
+    EC_POINT_add(group, eps21, eps21, tmp, ctx); // eps21 = g^rho21 * X^ch2
+
+    // eps22 = g^rho22 * A^ch2
+    EC_POINT_mul(group, eps22, rho22, NULL, NULL, ctx); // eps22 = g^rho22
+    EC_POINT_mul(group, tmp, NULL, A, ch2, ctx);        // tmp = A^ch2
+    EC_POINT_add(group, eps22, eps22, tmp, ctx); // eps22 = g^rho22 * A^ch2
+
+    // eps23 = R^rho21 * B^ch2
+    EC_POINT_mul(group, eps23, NULL, R, rho21, ctx); // eps23 = R^rho21
+    EC_POINT_mul(group, tmp, NULL, b, ch2, ctx);     // tmp = b^ch2
+    EC_POINT_add(group, eps23, eps23, tmp, ctx);     // eps23 = R^rho21 * b^ch2
+
+    // eps24 = B^rho22 * (c/g)^ch2
+    EC_POINT_mul(group, eps24, NULL, B, rho22, ctx); // eps24 = B^rho22
+    EC_POINT_copy(tmp, generator);                   // tmp = g
+    EC_POINT_invert(group, tmp, ctx);                // tmp = g^-1
+    EC_POINT_add(group, tmp, c, tmp, ctx);           // tmp = c/g
+    EC_POINT_mul(group, tmp, NULL, tmp, ch2, ctx);   // tmp = (c/g)^ch2
+    EC_POINT_add(group, eps24, eps24, tmp, ctx); // eps24 = B^rho22 * (c/g)^ch2
+  } else {
+    BN_rand_range(rho11, order);
+    BN_rand_range(rho12, order);
+    BN_rand_range(ch1, order);
+
+    // eps11 = g^rho11 * X^ch1
+    EC_POINT_mul(group, eps11, rho11, NULL, NULL, ctx); // eps11 = g^rho11
+    EC_POINT_mul(group, tmp, NULL, X, ch1, ctx);        // tmp = X^ch1
+    EC_POINT_add(group, eps11, eps11, tmp, ctx); // eps11 = g^rho11 * X^ch1
+
+    // eps12 = g^rho12 * A^ch1
+    EC_POINT_mul(group, eps12, rho12, NULL, NULL, ctx); // eps12 = g^rho12
+    EC_POINT_mul(group, tmp, NULL, A, ch1, ctx);        // tmp = A^ch1
+    EC_POINT_add(group, eps12, eps12, tmp, ctx); // eps12 = g^rho12 * A^ch1
+
+    // eps13 = R^rho11 * B^ch1
+    EC_POINT_mul(group, eps13, NULL, R, rho11, ctx); // eps13 = R^rho11
+    EC_POINT_mul(group, tmp, NULL, b, ch1, ctx);     // tmp = b^ch1
+    EC_POINT_add(group, eps13, eps13, tmp, ctx);     // eps13 = R^rho11 * b^ch1
+
+    // eps14 = B^rho12 * c^ch1
+    EC_POINT_mul(group, eps14, NULL, B, rho12, ctx); // eps14 = B^rho12
+    EC_POINT_mul(group, tmp, NULL, c, ch1, ctx);     // tmp = c^ch1
+    EC_POINT_add(group, eps14, eps14, tmp, ctx);     // eps14 = B^rho12 * c^ch1
+
+    EC_POINT_mul(group, eps21, r11, NULL, NULL, ctx); // eps21 = g^r11
+
+    EC_POINT_mul(group, eps22, r12, NULL, NULL, ctx); // eps22 = g^r12
+
+    EC_POINT_mul(group, eps23, NULL, Y, r11, ctx); // eps23 = Y^r11
+
+    EC_POINT_mul(group, eps24, NULL, B, r12, ctx); // eps24 = B^r12
+  }
+
+  len = BN_num_bytes(order);
+  hash_input = new unsigned char[16 * len + sizeof(size_t)];
+  hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
+
+  memcpy(hash_input,
+         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + len,
+         EC_POINT_point2hex(group, eps11, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 2 * len,
+         EC_POINT_point2hex(group, eps12, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 3 * len,
+         EC_POINT_point2hex(group, eps13, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 4 * len,
+         EC_POINT_point2hex(group, eps14, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 5 * len,
+         EC_POINT_point2hex(group, eps21, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 6 * len,
+         EC_POINT_point2hex(group, eps22, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 7 * len,
+         EC_POINT_point2hex(group, eps23, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 8 * len,
+         EC_POINT_point2hex(group, eps24, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 9 * len,
+         EC_POINT_point2hex(group, b, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 10 * len,
+         EC_POINT_point2hex(group, X, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 11 * len,
+         EC_POINT_point2hex(group, Y, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 12 * len,
+         EC_POINT_point2hex(group, R, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 13 * len,
+         EC_POINT_point2hex(group, c, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 14 * len,
+         EC_POINT_point2hex(group, A, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 15 * len,
+         EC_POINT_point2hex(group, B, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 16 * len, &id_, sizeof(size_t));
+
+  SHA256(hash_input, 16 * len + sizeof(size_t), hash_output);
+  BN_bin2bn(hash_output, SHA256_DIGEST_LENGTH,
+            ch); // ch = hash(g, eps11, eps12, eps13, eps14, eps21, eps22,
+                 // eps23, eps24, b, X, Y, R, c, A, B, id_)
+
+  if (bit == 0) {
+    BN_mod_sub(ch1, ch, ch2, order, ctx);    // ch1 = ch-ch2
+    BN_mod_mul(ch1, ch1, x, order, ctx);     // ch1 = x*(ch-ch2)
+    BN_mod_sub(rho11, r11, ch1, order, ctx); // rho11 = r11-x*(ch-ch2)
+
+    BN_mod_sub(ch1, ch, ch2, order, ctx);    // reset ch1 = ch-ch2
+    BN_mod_mul(ch1, ch1, alpha, order, ctx); // ch1 = alpha*(ch-ch2)
+    BN_mod_sub(rho12, r12, ch1, order, ctx); // rho12 = r12-alpha*(ch-ch2)
+  } else {
+    BN_mod_sub(ch2, ch, ch1, order, ctx);    // ch2 = ch-ch1
+    BN_mod_mul(ch2, ch2, x, order, ctx);     // ch2 = x*(ch-ch1)
+    BN_mod_sub(rho21, r11, ch2, order, ctx); // rho21 = r11-x*(ch-ch1)
+
+    BN_mod_sub(ch2, ch, ch1, order, ctx);    // reset ch2 = ch-ch1
+    BN_mod_mul(ch2, ch2, alpha, order, ctx); // ch2 = alpha*(ch-ch1)
+    BN_mod_sub(rho22, r12, ch2, order, ctx); // rho22 = r12-alpha*(ch-ch1)
+  }
+
+  proof.eps11 = eps11;
+  proof.eps12 = eps12;
+  proof.eps13 = eps13;
+  proof.eps14 = eps14;
+  proof.eps21 = eps21;
+  proof.eps22 = eps22;
+  proof.eps23 = eps23;
+  proof.eps24 = eps24;
+  proof.rho11 = rho11;
+  proof.rho12 = rho12;
+  proof.rho21 = rho21;
+  proof.rho22 = rho22;
+  proof.ch2 = ch2;
+}
+
+bool Bidder::verNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
+                               const EC_POINT *X, const EC_POINT *Y,
+                               const EC_POINT *R, const EC_POINT *c,
+                               const EC_POINT *A, const EC_POINT *B, size_t id,
+                               BN_CTX *ctx) {
+  bool ret;
+  size_t len;
+  unsigned char *hash_input;
+  unsigned char *hash_output;
+  BIGNUM *ch = BN_new();
+  BIGNUM *ch1 = BN_new();
+  EC_POINT *tmp1 = EC_POINT_new(group);
+  EC_POINT *tmp2 = EC_POINT_new(group);
+
+  ret = true;
+  len = BN_num_bytes(order);
+  hash_input = new unsigned char[16 * len + sizeof(size_t)];
+  hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
+
+  memcpy(hash_input,
+         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(
+      hash_input + len,
+      EC_POINT_point2hex(group, proof.eps11, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 2 * len,
+      EC_POINT_point2hex(group, proof.eps12, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 3 * len,
+      EC_POINT_point2hex(group, proof.eps13, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 4 * len,
+      EC_POINT_point2hex(group, proof.eps14, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 5 * len,
+      EC_POINT_point2hex(group, proof.eps21, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 6 * len,
+      EC_POINT_point2hex(group, proof.eps22, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 7 * len,
+      EC_POINT_point2hex(group, proof.eps23, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 8 * len,
+      EC_POINT_point2hex(group, proof.eps24, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(hash_input + 9 * len,
+         EC_POINT_point2hex(group, b, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 10 * len,
+         EC_POINT_point2hex(group, X, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 11 * len,
+         EC_POINT_point2hex(group, Y, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 12 * len,
+         EC_POINT_point2hex(group, R, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 13 * len,
+         EC_POINT_point2hex(group, c, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 14 * len,
+         EC_POINT_point2hex(group, A, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 15 * len,
+         EC_POINT_point2hex(group, B, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 16 * len, &id, sizeof(size_t));
+
+  SHA256(hash_input, 16 * len + sizeof(size_t), hash_output);
+  BN_bin2bn(hash_output, SHA256_DIGEST_LENGTH,
+            ch); // ch = hash(g, eps11, eps12, eps13, eps14, eps21, eps22,
+                 // eps23, eps24, b, X, Y, R, c, A, B, id_)
+  BN_mod_sub(ch1, ch, proof.ch2, order, ctx); // ch1 = ch-ch2
+
+  // check 1: g^rho11 * X^ch1 == eps11
+  EC_POINT_mul(group, tmp1, proof.rho11, NULL, NULL, ctx); // tmp1 = g^rho11
+  EC_POINT_mul(group, tmp2, NULL, X, ch1, ctx);            // tmp2 = X^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho11 * X^ch1
+  if (EC_POINT_cmp(group, tmp2, proof.eps11, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage1 verification failed for bidder "
+                << id << ": check 1");
+    ret = false;
+  }
+
+  // check 2: g^rho12 * A^ch1 == eps12
+  EC_POINT_mul(group, tmp1, proof.rho12, NULL, NULL, ctx); // tmp1 = g^rho12
+  EC_POINT_mul(group, tmp2, NULL, A, ch1, ctx);            // tmp2 = A^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho12 * A^ch1
+  if (EC_POINT_cmp(group, tmp2, proof.eps12, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage1 verification failed for bidder "
+                << id << ": check 2");
+    ret = false;
+  }
+
+  // check 3: Y^rho11 * b^ch1 == eps13
+  EC_POINT_mul(group, tmp1, NULL, Y, proof.rho11, ctx); // tmp1 = Y^rho11
+  EC_POINT_mul(group, tmp2, NULL, b, ch1, ctx);         // tmp2 = b^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = Y^rho11 * b^ch1
+  if (EC_POINT_cmp(group, tmp2, proof.eps13, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage1 verification failed for bidder "
+                << id << ": check 3");
+    ret = false;
+  }
+
+  // check 4: B^rho12 * c^ch1 == eps14
+  EC_POINT_mul(group, tmp1, NULL, B, proof.rho12, ctx); // tmp1 = B^rho12
+  EC_POINT_mul(group, tmp2, NULL, c, ch1, ctx);         // tmp2 = c^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = B^rho12 * c^ch1
+  if (EC_POINT_cmp(group, tmp2, proof.eps14, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage1 verification failed for bidder "
+                << id << ": check 4");
+    ret = false;
+  }
+
+  // check 5: g^rho21 * X^ch2 == eps21
+  EC_POINT_mul(group, tmp1, proof.rho21, NULL, NULL, ctx); // tmp1 = g^rho21
+  EC_POINT_mul(group, tmp2, NULL, X, proof.ch2, ctx);      // tmp2 = X^ch2
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho21 * X^ch2
+  if (EC_POINT_cmp(group, tmp2, proof.eps21, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage1 verification failed for bidder "
+                << id << ": check 5");
+    ret = false;
+  }
+
+  // check 6: g^rho22 * A^ch2 == eps22
+  EC_POINT_mul(group, tmp1, proof.rho22, NULL, NULL, ctx); // tmp1 = g^rho22
+  EC_POINT_mul(group, tmp2, NULL, A, proof.ch2, ctx);      // tmp2 = A^ch2
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho22 * A^ch2
+  if (EC_POINT_cmp(group, tmp2, proof.eps22, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage1 verification failed for bidder "
+                << id << ": check 6");
+    ret = false;
+  }
+
+  // check 7: R^rho21 * b^ch2 == eps23
+  EC_POINT_mul(group, tmp1, NULL, R, proof.rho21, ctx); // tmp1 = R^rho21
+  EC_POINT_mul(group, tmp2, NULL, b, proof.ch2, ctx);   // tmp2 = b^ch2
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = R^rho21 * b^ch2
+  if (EC_POINT_cmp(group, tmp2, proof.eps23, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage1 verification failed for bidder "
+                << id << ": check 7");
+    ret = false;
+  }
+
+  // check 8: B^rho22 * (c/g)^ch2 == eps24
+  EC_POINT_mul(group, tmp1, NULL, B, proof.rho22, ctx);  // tmp1 = B^rho22
+  EC_POINT_copy(tmp2, generator);                        // tmp2 = g
+  EC_POINT_invert(group, tmp2, ctx);                     // tmp2 = g^-1
+  EC_POINT_add(group, tmp2, c, tmp2, ctx);               // tmp2 = c/g
+  EC_POINT_mul(group, tmp2, NULL, tmp2, proof.ch2, ctx); // tmp2 = (c/g)^ch2
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = B^rho22 * (c/g)^ch2
+  if (EC_POINT_cmp(group, tmp2, proof.eps24, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage1 verification failed for bidder "
+                << id << ": check 8");
+    ret = false;
+  }
+
+  return ret;
+}
+
+void Bidder::genNIZKPoWFStage2(NIZKPoWFStage2 &, BN_CTX *) {}
+
+bool Bidder::verNIZKPoWFStage2(NIZKPoWFStage2 &, size_t, BN_CTX *) {}
+
+/**
  * @brief In the Commit phase, bidders commit their bids to the public
  * bulletin board, as well as their NIZK
  *
@@ -442,6 +822,8 @@ CommitmentPub Bidder::commitBid() {
  */
 bool Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) {
   bool ret = true;
+  commitmentsBB = pubs;
+
   BN_CTX *ctx = BN_CTX_new();
   for (size_t i = 0; i < pubs.size(); ++i) {
     if (i != id_) {
@@ -523,27 +905,28 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
   RoundTwoPub pub;
   BN_CTX *ctx = BN_CTX_new();
   EC_POINT *b = EC_POINT_new(group);
+  EC_POINT *Y = EC_POINT_new(group);
+  EC_POINT *firstHalfSum = EC_POINT_new(group);
+  EC_POINT *secondHalfSum = EC_POINT_new(group);
+
   int bit = binaryBidStr[step] - '0';
+
+  EC_POINT_set_to_infinity(group, firstHalfSum);
+  for (size_t i = 0; i < id_; ++i) {
+    EC_POINT_add(group, firstHalfSum, firstHalfSum, pubs[i].X, ctx);
+  }
+
+  EC_POINT_set_to_infinity(group, secondHalfSum);
+  for (size_t i = id_ + 1; i < pubs.size(); ++i) {
+    EC_POINT_add(group, secondHalfSum, secondHalfSum, pubs[i].X, ctx);
+  }
+
+  EC_POINT_invert(group, secondHalfSum, ctx);
+  EC_POINT_add(group, Y, firstHalfSum, secondHalfSum, ctx);
 
   if ((!junctionFlag && bit == 0) ||
       (junctionFlag && (bit == 0 || prevDecidingBit == 0))) {
     // PRINT_MESSAGE("Bidder " << id_ << " encodes bit 0 in step " << step)
-    EC_POINT *firstHalfSum = EC_POINT_new(group);
-    EC_POINT *secondHalfSum = EC_POINT_new(group);
-    EC_POINT *Y = EC_POINT_new(group);
-
-    EC_POINT_set_to_infinity(group, firstHalfSum);
-    for (size_t i = 0; i < id_; ++i) {
-      EC_POINT_add(group, firstHalfSum, firstHalfSum, pubs[i].X, ctx);
-    }
-
-    EC_POINT_set_to_infinity(group, secondHalfSum);
-    for (size_t i = id_ + 1; i < pubs.size(); ++i) {
-      EC_POINT_add(group, secondHalfSum, secondHalfSum, pubs[i].X, ctx);
-    }
-
-    EC_POINT_invert(group, secondHalfSum, ctx);
-    EC_POINT_add(group, Y, firstHalfSum, secondHalfSum, ctx);
     EC_POINT_mul(group, b, NULL, Y, keys[step].x, ctx);
   } else { // (!junctionFlag && bit == 1) || (junctionFlag && bit == 1 &&
            // prevDecidingBit == 1))
@@ -553,7 +936,19 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
 
   pub.b = b;
 
-  // TODO: NIZK
+  if (!junctionFlag) {
+    // Generate NIZKPoWFStage1
+    pub.stage = STAGE1;
+
+    genNIZKPoWFStage1(pub.powf.powfstage1, b, keys[step].X, Y, keys[step].R,
+                      commitments[step].phi, commitments[step].A,
+                      commitments[step].B, keys[step].x,
+                      commitments[step].alpha, bit, ctx);
+  } else {
+    // Generate NIZKPoWFStage2
+    pub.stage = STAGE2;
+    genNIZKPoWFStage2(pub.powf.powfstage2, ctx);
+  }
 
   return pub;
 }

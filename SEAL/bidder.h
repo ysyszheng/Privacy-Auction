@@ -66,21 +66,37 @@ private:
   size_t prevDecidingStep;
   size_t prevDecidingBit; // bit d in paper
 
+  // public parameters
   const EC_GROUP *group;
   const EC_POINT *generator;
   const BIGNUM *order;
 
+  // self information (public & private)
   std::vector<Commitment> commitments;
   std::vector<Key> keys;
 
+  // information on Public BB(Bulletin Board)
+  std::vector<CommitmentPub> commitmentsBB;
+
+  // generate non-interactive zero-knowledge proof (as prover)
   void genNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, const BIGNUM *,
                       BN_CTX *);
   void genNIZKPoWFCom(NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
                       const EC_POINT *, const BIGNUM *, int, BN_CTX *);
+  void genNIZKPoWFStage1(NIZKPoWFStage1 &, const EC_POINT *, const EC_POINT *,
+                         const EC_POINT *, const EC_POINT *, const EC_POINT *,
+                         const EC_POINT *, const EC_POINT *, const BIGNUM *,
+                         const BIGNUM *, int, BN_CTX *);
+  void genNIZKPoWFStage2(NIZKPoWFStage2 &, BN_CTX *);
 
+  // verify non-interactive zero-knowledge proof (as verifier)
   bool verNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, size_t, BN_CTX *);
   bool verNIZKPoWFCom(NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
                       const EC_POINT *, size_t, BN_CTX *);
+  bool verNIZKPoWFStage1(NIZKPoWFStage1 &, const EC_POINT *, const EC_POINT *,
+                         const EC_POINT *, const EC_POINT *, const EC_POINT *,
+                         const EC_POINT *, const EC_POINT *, size_t, BN_CTX *);
+  bool verNIZKPoWFStage2(NIZKPoWFStage2 &, size_t, BN_CTX *);
 };
 
 #endif /* BIDDER_H */
