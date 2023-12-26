@@ -27,9 +27,9 @@ Bidder::Bidder(size_t id, size_t c)
   bid_ = dist(gen);
   binaryBidStr = bitset<C_MAX>(bid_).to_string().substr(C_MAX - c_);
 
-  // PRINT_MESSAGE("Construct Bidder: " << id_ << "\nBid: " << bid_
-  //                                    << ", Bid (in binary): " <<
-  //                                    binaryBidStr);
+  PRINT_MESSAGE("Construct Bidder: " << id_ << "\nBid: " << bid_
+                                     << ", Bid (in binary): " <<
+                                     binaryBidStr);
 
   if (NULL == (group = EC_GROUP_new_by_curve_name(NID_SECP256K1))) {
     ERR_print_errors_fp(stderr);
@@ -89,6 +89,7 @@ void Bidder::genNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
   hash_input = new unsigned char[3 * len + sizeof(size_t)];
   hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
 
+  // TODO: calculate hash is right?
   memcpy(hash_input,
          EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
          len);
@@ -170,12 +171,12 @@ bool Bidder::verNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
  */
 void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
                             const EC_POINT *A, const EC_POINT *B,
-                            const BIGNUM *alpha, BN_CTX *ctx) {
+                            const BIGNUM *alpha, int bit, BN_CTX *ctx) {
   size_t len;
   unsigned char *hash_input;
   unsigned char *hash_output;
 
-  BIGNUM *r1 = BN_new();
+  BIGNUM *r1 = BN_new(); // or r2, no matter
   BIGNUM *rho1 = BN_new();
   BIGNUM *rho2 = BN_new();
   BIGNUM *ch = BN_new();
@@ -189,22 +190,44 @@ void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   EC_POINT *tmp = EC_POINT_new(group);
 
   BN_rand_range(r1, order);
-  BN_rand_range(ch2, order);
-  BN_rand_range(rho2, order);
 
-  EC_POINT_mul(group, eps11, r1, NULL, NULL, ctx); // eps11 =g^r1
-  EC_POINT_mul(group, eps12, NULL, B, r1, ctx);    // eps12 = g^(beat*r1)
-  EC_POINT_mul(group, eps21, rho2, A, ch2,
-               ctx); // eps21 = g^rho2 * g^(alpha*ch2)
+  if (bit == 0) { // bit = 0
+    BN_rand_range(ch2, order);
+    BN_rand_range(rho2, order);
 
-  EC_POINT_copy(tmp, generator);                 // tmp = g
-  EC_POINT_invert(group, tmp, ctx);              // tmp = g^-1
-  EC_POINT_add(group, tmp, phi, tmp, ctx);       // tmp = phi/g
-  EC_POINT_mul(group, tmp, NULL, tmp, ch2, ctx); // tmp = (phi/g)^ch2
-  EC_POINT_mul(group, eps22, NULL, B, rho2,
-               ctx); // eps22 = g^(beta*rho2)
-  EC_POINT_add(group, eps22, eps22, tmp,
-               ctx); // eps22 = g^(beta*rho2) * (phi/g)^ch2
+    EC_POINT_mul(group, eps11, r1, NULL, NULL, ctx); // eps11 = g^r1
+
+    EC_POINT_mul(group, eps12, NULL, B, r1, ctx); // eps12 = g^(beat*r1)
+
+    EC_POINT_mul(group, eps21, rho2, A, ch2,
+                 ctx); // eps21 = g^rho2 * g^(alpha*ch2)
+
+    EC_POINT_copy(tmp, generator);                 // tmp = g
+    EC_POINT_invert(group, tmp, ctx);              // tmp = g^-1
+    EC_POINT_add(group, tmp, phi, tmp, ctx);       // tmp = phi/g
+    EC_POINT_mul(group, tmp, NULL, tmp, ch2, ctx); // tmp = (phi/g)^ch2
+    EC_POINT_mul(group, eps22, NULL, B, rho2,
+                 ctx); // eps22 = g^(beta*rho2)
+    EC_POINT_add(group, eps22, eps22, tmp,
+                 ctx); // eps22 = g^(beta*rho2) * (phi/g)^ch2
+  } else {             // bit = 1
+    BN_rand_range(ch1, order);
+    BN_rand_range(rho1, order);
+
+    EC_POINT_mul(group, eps11, rho1, NULL, NULL, ctx); // eps11 = g^rho1
+    EC_POINT_mul(group, tmp, NULL, A, ch1, ctx);       // tmp = g^{alpha*ch1}
+    EC_POINT_add(group, eps11, eps11, tmp,
+                 ctx); // eps11 = g^rho1 * g^(alpha*ch1)
+
+    EC_POINT_mul(group, eps12, NULL, phi, ch1, ctx); // eps12 = phi^ch1
+    EC_POINT_mul(group, tmp, NULL, B, rho1, ctx);    // tmp = g^{beta*rho1}
+    EC_POINT_add(group, eps12, eps12, tmp,
+                 ctx); // eps12 = g^{beta*rho1} * phi^ch1
+
+    EC_POINT_mul(group, eps21, r1, NULL, NULL, ctx); // eps21 = g^r1
+
+    EC_POINT_mul(group, eps22, NULL, B, r1, ctx); // eps22 = g^(beta*r1)
+  }
 
   // TODO: whether need include ch2 in hash
   len = BN_num_bytes(order);
@@ -237,9 +260,17 @@ void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   SHA256(hash_input, 8 * len + sizeof(size_t), hash_output);
   BN_bin2bn(hash_output, SHA256_DIGEST_LENGTH,
             ch); // ch = hash(g, eps11, eps12, eps21, eps22, phi, A, B id_)
-  BN_mod_sub(ch1, ch, ch2, order, ctx);    // ch1 = ch-ch2
-  BN_mod_mul(ch1, ch1, alpha, order, ctx); // ch1 = alpha*(ch-ch2)
-  BN_mod_sub(rho1, r1, ch1, order, ctx);   // rho1 = r1-alpha*(ch-ch2)
+
+  if (bit == 0) {
+    BN_mod_sub(ch1, ch, ch2, order, ctx);    // ch1 = ch-ch2
+    BN_mod_mul(ch1, ch1, alpha, order, ctx); // ch1 = alpha*(ch-ch2)
+    BN_mod_sub(rho1, r1, ch1, order, ctx);   // rho1 = r1-alpha*(ch-ch2)
+  } else {
+    BN_mod_sub(ch2, ch, ch1, order, ctx);    // ch2 = ch-ch1
+    BN_mod_mul(ch2, ch2, alpha, order, ctx); // ch2 = alpha*(ch-ch1)
+    BN_mod_sub(rho2, r1, ch2, order, ctx);   // rho2 = r1-alpha*(ch-ch1)
+    BN_mod_sub(ch2, ch, ch1, order, ctx);    // reset ch2 = ch-ch1
+  }
 
   proof.eps11 = eps11;
   proof.eps12 = eps12;
@@ -314,14 +345,6 @@ bool Bidder::verNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   EC_POINT_mul(group, tmp2, NULL, phi, ch1, ctx);      // tmp2 = phi^ch1
   EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = B^rho1 * phi^ch1
   if (EC_POINT_cmp(group, tmp2, proof.eps12, ctx) != 0) {
-    PRINT_DEBUG(
-        "B = " << EC_POINT_point2hex(group, B, POINT_CONVERSION_COMPRESSED, ctx)
-               << "\nrho1 = " << BN_bn2hex(proof.rho1) << "\nphi = "
-               << EC_POINT_point2hex(group, phi, POINT_CONVERSION_COMPRESSED,
-                                     ctx)
-               << "\nch2 = " << BN_bn2hex(proof.ch2) << "\neps12 = "
-               << EC_POINT_point2hex(group, proof.eps12,
-                                     POINT_CONVERSION_COMPRESSED, ctx));
     PRINT_ERROR("NIZKPoWFCom verification failed for bidder " << id
                                                               << ": check 2");
     ret = false;
@@ -404,22 +427,7 @@ CommitmentPub Bidder::commitBid() {
 
     // Generate NIZKoWFCom
     genNIZKPoWFCom(pubs[i].powfcom, commitmentPhi, commitmentA, commitmentB,
-                   alpha, ctx);
-    PRINT_DEBUG("Commitment of bit "
-                << i << " of bidder " << id_ << ":\n"
-                << "phi = "
-                << EC_POINT_point2hex(group, commitmentPhi,
-                                      POINT_CONVERSION_COMPRESSED, ctx)
-                << "\nA = "
-                << EC_POINT_point2hex(group, commitmentA,
-                                      POINT_CONVERSION_COMPRESSED, ctx)
-                << "\nB = "
-                << EC_POINT_point2hex(group, commitmentB,
-                                      POINT_CONVERSION_COMPRESSED, ctx)
-                << "\nrho1 = " << BN_bn2hex(pubs[i].powfcom.rho1)
-                << "\nch2 = " << BN_bn2hex(pubs[i].powfcom.ch2) << "\neps12 = "
-                << EC_POINT_point2hex(group, pubs[i].powfcom.eps12,
-                                      POINT_CONVERSION_COMPRESSED, ctx));
+                   alpha, bit, ctx);
   }
 
   return pubs;
@@ -445,19 +453,6 @@ bool Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) {
         // Verify NIZKPoWFCom
         ret &= verNIZKPoWFCom(pubs[i][j].powfcom, pubs[i][j].phi, pubs[i][j].A,
                               pubs[i][j].B, i, ctx);
-        PRINT_DEBUG(
-            "Verify commitment of bit "
-            << j << " of bidder " << i
-            << ":"
-               "\nB = "
-            << EC_POINT_point2hex(group, pubs[i][j].B,
-                                  POINT_CONVERSION_COMPRESSED, ctx)
-            << "\nrho1 = " << BN_bn2hex(pubs[i][j].powfcom.rho1) << "\nphi = "
-            << EC_POINT_point2hex(group, pubs[i][j].phi,
-                                  POINT_CONVERSION_COMPRESSED, ctx)
-            << "\nch2 = " << BN_bn2hex(pubs[i][j].powfcom.ch2) << "\neps12 = "
-            << EC_POINT_point2hex(group, pubs[i][j].powfcom.eps12,
-                                  POINT_CONVERSION_COMPRESSED, ctx));
       }
     }
   }

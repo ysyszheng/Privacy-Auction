@@ -76,7 +76,7 @@ private:
   void genNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, const BIGNUM *,
                       BN_CTX *);
   void genNIZKPoWFCom(NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
-                      const EC_POINT *, const BIGNUM *, BN_CTX *);
+                      const EC_POINT *, const BIGNUM *, int, BN_CTX *);
 
   bool verNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, size_t, BN_CTX *);
   bool verNIZKPoWFCom(NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
