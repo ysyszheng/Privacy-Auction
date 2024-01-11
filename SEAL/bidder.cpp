@@ -73,9 +73,6 @@ size_t Bidder::getMaxBid() { return maxBid; }
  */
 void Bidder::genNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
                             const BIGNUM *x, BN_CTX *ctx) {
-  size_t len;
-  unsigned char *hash_input;
-  unsigned char *hash_output;
   BIGNUM *v = BN_new();   // \bar{r} in paper
   BIGNUM *h = BN_new();   // hash(g, g^v, g^x, id_), ch in paper
   BIGNUM *rho = BN_new(); // hash(g, g^v, g^x, id_), ch in paper
@@ -84,25 +81,7 @@ void Bidder::genNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
   BN_rand_range(v, order);
   EC_POINT_mul(group, g_to_v, v, NULL, NULL, ctx);
 
-  len = BN_num_bytes(order);
-  hash_input = new unsigned char[3 * len + sizeof(size_t)];
-  hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
-
-  // TODO: calculate hash is right?
-  memcpy(hash_input,
-         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + len,
-         EC_POINT_point2hex(group, g_to_v, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 2 * len,
-         EC_POINT_point2hex(group, g_to_x, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 3 * len, &id_, sizeof(size_t));
-
-  SHA256(hash_input, 3 * len + sizeof(size_t), hash_output);
-  BN_bin2bn(hash_output, SHA256_DIGEST_LENGTH,
-            h); // ch = h = hash(g, g^v, g^x, id_)
+  h = SHA256inNIZKPoKDLog(group, order, generator, g_to_v, g_to_x, id_, ctx);
 
   BN_mod_mul(h, h, x, order, ctx);   // h = h*x = ch*x
   BN_mod_sub(rho, v, h, order, ctx); // rho = v-h = v-ch*x
@@ -123,29 +102,11 @@ void Bidder::genNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
  */
 bool Bidder::verNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
                             BN_CTX *ctx) {
-  size_t len;
-  unsigned char *hash_input;
-  unsigned char *hash_output;
   BIGNUM *h = BN_new(); // hash(g, g^v, g^x, id_), ch in paper
   EC_POINT *g_to_rho = EC_POINT_new(group);
   EC_POINT *X_to_h = EC_POINT_new(group);
 
-  len = BN_num_bytes(order);
-  hash_input = new unsigned char[3 * len + sizeof(size_t)];
-  hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
-
-  memcpy(hash_input,
-         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + len,
-         EC_POINT_point2hex(group, proof.eps, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 2 * len,
-         EC_POINT_point2hex(group, X, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 3 * len, &id, sizeof(size_t));
-
-  SHA256(hash_input, 3 * len + sizeof(size_t), hash_output);
-  BN_bin2bn(hash_output, SHA256_DIGEST_LENGTH, h);
+  h = SHA256inNIZKPoKDLog(group, order, generator, proof.eps, X, id, ctx);
 
   // check: g^rho * X^h == eps
   EC_POINT_mul(group, g_to_rho, proof.rho, NULL, NULL, ctx);
@@ -172,10 +133,6 @@ bool Bidder::verNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
 void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
                             const EC_POINT *A, const EC_POINT *B,
                             const BIGNUM *alpha, int bit, BN_CTX *ctx) {
-  size_t len;
-  unsigned char *hash_input;
-  unsigned char *hash_output;
-
   BIGNUM *r1 = BN_new(); // or r2, no matter
   BIGNUM *rho1 = BN_new();
   BIGNUM *rho2 = BN_new();
@@ -229,36 +186,8 @@ void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
     EC_POINT_mul(group, eps22, NULL, B, r1, ctx); // eps22 = g^(beta*r1)
   }
 
-  len = BN_num_bytes(order);
-  hash_input = new unsigned char[8 * len + sizeof(size_t)];
-  hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
-
-  memcpy(hash_input,
-         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + len,
-         EC_POINT_point2hex(group, eps11, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 2 * len,
-         EC_POINT_point2hex(group, eps12, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 3 * len,
-         EC_POINT_point2hex(group, eps21, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 4 * len,
-         EC_POINT_point2hex(group, eps22, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 5 * len,
-         EC_POINT_point2hex(group, phi, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 6 * len,
-         EC_POINT_point2hex(group, A, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 7 * len,
-         EC_POINT_point2hex(group, B, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 8 * len, &id_, sizeof(size_t));
-
-  SHA256(hash_input, 8 * len + sizeof(size_t), hash_output);
-  BN_bin2bn(hash_output, SHA256_DIGEST_LENGTH,
-            ch); // ch = hash(g, eps11, eps12, eps21, eps22, phi, A, B id_)
+  ch = SHA256inNIZKPoWFCom(group, order, generator, eps11, eps12, eps21, eps22,
+                           phi, A, B, id_, ctx);
 
   if (bit == 0) {
     BN_mod_sub(ch1, ch, ch2, order, ctx);    // ch1 = ch-ch2
@@ -295,50 +224,15 @@ void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
 bool Bidder::verNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
                             const EC_POINT *A, const EC_POINT *B, size_t id,
                             BN_CTX *ctx) {
-  bool ret;
-  size_t len;
-  unsigned char *hash_input;
-  unsigned char *hash_output;
+  bool ret = true;
   BIGNUM *ch = BN_new();
   BIGNUM *ch1 = BN_new();
   EC_POINT *tmp1 = EC_POINT_new(group);
   EC_POINT *tmp2 = EC_POINT_new(group);
 
-  ret = true;
-  len = BN_num_bytes(order);
-  hash_input = new unsigned char[8 * len + sizeof(size_t)];
-  hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
+  ch = SHA256inNIZKPoWFCom(group, order, generator, proof.eps11, proof.eps12,
+                           proof.eps21, proof.eps22, phi, A, B, id, ctx);
 
-  memcpy(hash_input,
-         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(
-      hash_input + len,
-      EC_POINT_point2hex(group, proof.eps11, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(
-      hash_input + 2 * len,
-      EC_POINT_point2hex(group, proof.eps12, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(
-      hash_input + 3 * len,
-      EC_POINT_point2hex(group, proof.eps21, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(
-      hash_input + 4 * len,
-      EC_POINT_point2hex(group, proof.eps22, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(hash_input + 5 * len,
-         EC_POINT_point2hex(group, phi, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 6 * len,
-         EC_POINT_point2hex(group, A, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 7 * len,
-         EC_POINT_point2hex(group, B, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 8 * len, &id, sizeof(size_t));
-
-  SHA256(hash_input, 8 * len + sizeof(size_t), hash_output);
-  BN_bin2bn(hash_output, SHA256_DIGEST_LENGTH,
-            ch); // ch = hash(g, eps11, eps12, eps21, eps22, phi, A, B id_)
   BN_mod_sub(ch1, ch, proof.ch2, order, ctx); // ch1 = ch-ch2
 
   // check 1: g^rho1 * A^ch1 == eps11
@@ -505,57 +399,9 @@ void Bidder::genNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
     EC_POINT_mul(group, eps24, NULL, B, r12, ctx); // eps24 = B^r12
   }
 
-  len = BN_num_bytes(order);
-  hash_input = new unsigned char[16 * len + sizeof(size_t)];
-  hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
-
-  memcpy(hash_input,
-         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + len,
-         EC_POINT_point2hex(group, eps11, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 2 * len,
-         EC_POINT_point2hex(group, eps12, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 3 * len,
-         EC_POINT_point2hex(group, eps13, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 4 * len,
-         EC_POINT_point2hex(group, eps14, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 5 * len,
-         EC_POINT_point2hex(group, eps21, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 6 * len,
-         EC_POINT_point2hex(group, eps22, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 7 * len,
-         EC_POINT_point2hex(group, eps23, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 8 * len,
-         EC_POINT_point2hex(group, eps24, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(hash_input + 9 * len,
-         EC_POINT_point2hex(group, b, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 10 * len,
-         EC_POINT_point2hex(group, X, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 11 * len,
-         EC_POINT_point2hex(group, Y, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 12 * len,
-         EC_POINT_point2hex(group, R, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 13 * len,
-         EC_POINT_point2hex(group, c, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 14 * len,
-         EC_POINT_point2hex(group, A, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 15 * len,
-         EC_POINT_point2hex(group, B, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 16 * len, &id_, sizeof(size_t));
-
-  SHA256(hash_input, 16 * len + sizeof(size_t), hash_output);
-  BN_bin2bn(hash_output, SHA256_DIGEST_LENGTH,
-            ch); // ch = hash(g, eps11, eps12, eps13, eps14, eps21, eps22,
-                 // eps23, eps24, b, X, Y, R, c, A, B, id_)
+  ch = SHA256inNIZKPoWFStage1(group, order, generator, eps11, eps12, eps13,
+                              eps14, eps21, eps22, eps23, eps24, b, X, Y, R, c,
+                              A, B, id_, ctx);
 
   if (bit == 0) {
     BN_mod_sub(ch1, ch, ch2, order, ctx);    // ch1 = ch-ch2
@@ -595,75 +441,16 @@ bool Bidder::verNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
                                const EC_POINT *R, const EC_POINT *c,
                                const EC_POINT *A, const EC_POINT *B, size_t id,
                                BN_CTX *ctx) {
-  bool ret;
-  size_t len;
-  unsigned char *hash_input;
-  unsigned char *hash_output;
+  bool ret = true;
   BIGNUM *ch = BN_new();
   BIGNUM *ch1 = BN_new();
   EC_POINT *tmp1 = EC_POINT_new(group);
   EC_POINT *tmp2 = EC_POINT_new(group);
 
-  ret = true;
-  len = BN_num_bytes(order);
-  hash_input = new unsigned char[16 * len + sizeof(size_t)];
-  hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
-
-  memcpy(hash_input,
-         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
-         len);
-  memcpy(
-      hash_input + len,
-      EC_POINT_point2hex(group, proof.eps11, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(
-      hash_input + 2 * len,
-      EC_POINT_point2hex(group, proof.eps12, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(
-      hash_input + 3 * len,
-      EC_POINT_point2hex(group, proof.eps13, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(
-      hash_input + 4 * len,
-      EC_POINT_point2hex(group, proof.eps14, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(
-      hash_input + 5 * len,
-      EC_POINT_point2hex(group, proof.eps21, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(
-      hash_input + 6 * len,
-      EC_POINT_point2hex(group, proof.eps22, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(
-      hash_input + 7 * len,
-      EC_POINT_point2hex(group, proof.eps23, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(
-      hash_input + 8 * len,
-      EC_POINT_point2hex(group, proof.eps24, POINT_CONVERSION_COMPRESSED, ctx),
-      len);
-  memcpy(hash_input + 9 * len,
-         EC_POINT_point2hex(group, b, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 10 * len,
-         EC_POINT_point2hex(group, X, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 11 * len,
-         EC_POINT_point2hex(group, Y, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 12 * len,
-         EC_POINT_point2hex(group, R, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 13 * len,
-         EC_POINT_point2hex(group, c, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 14 * len,
-         EC_POINT_point2hex(group, A, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 15 * len,
-         EC_POINT_point2hex(group, B, POINT_CONVERSION_COMPRESSED, ctx), len);
-  memcpy(hash_input + 16 * len, &id, sizeof(size_t));
-
-  SHA256(hash_input, 16 * len + sizeof(size_t), hash_output);
-  BN_bin2bn(hash_output, SHA256_DIGEST_LENGTH,
-            ch); // ch = hash(g, eps11, eps12, eps13, eps14, eps21, eps22,
-                 // eps23, eps24, b, X, Y, R, c, A, B, id_)
+  ch = SHA256inNIZKPoWFStage1(group, order, generator, proof.eps11, proof.eps12,
+                              proof.eps13, proof.eps14, proof.eps21,
+                              proof.eps22, proof.eps23, proof.eps24, b, X, Y, R,
+                              c, A, B, id, ctx);
   BN_mod_sub(ch1, ch, proof.ch2, order, ctx); // ch1 = ch-ch2
 
   // check 1: g^rho11 * X^ch1 == eps11

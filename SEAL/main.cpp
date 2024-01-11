@@ -33,6 +33,7 @@ int main(int argc, char *argv[]) {
                 << maxBid << ", Max bid (in binary): "
                 << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
 
+  // TODO: use communication channel to send bids to auctioneer
   // Commit phase
   for (size_t j = 0; j < n; ++j) {
     commitments.push_back(bidders[j].commitBid());
