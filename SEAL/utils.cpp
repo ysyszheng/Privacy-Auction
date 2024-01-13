@@ -154,3 +154,118 @@ BIGNUM *SHA256inNIZKPoWFStage1(
 
   return h;
 }
+
+BIGNUM *SHA256inNIZKPoWFStage2(
+    const EC_GROUP *group, const BIGNUM *order, const EC_POINT *generator,
+    const EC_POINT *eps11, const EC_POINT *eps12, const EC_POINT *eps13,
+    const EC_POINT *eps11prime, const EC_POINT *eps12prime,
+    const EC_POINT *eps13prime, const EC_POINT *eps21, const EC_POINT *eps22,
+    const EC_POINT *eps23, const EC_POINT *eps21prime,
+    const EC_POINT *eps22prime, const EC_POINT *eps23prime,
+    const EC_POINT *eps31, const EC_POINT *eps32, const EC_POINT *eps31prime,
+    const EC_POINT *eps32prime, const EC_POINT *Xi, const EC_POINT *Xj,
+    const EC_POINT *A, const EC_POINT *Bi, const EC_POINT *Bj,
+    const EC_POINT *B, const EC_POINT *Ri, const EC_POINT *Rj,
+    const EC_POINT *Ci, const EC_POINT *Yi, const EC_POINT *Yj, size_t id_,
+    BN_CTX *ctx) {
+  BIGNUM *h = BN_new();
+  unsigned char *hash_input;
+  unsigned char *hash_output;
+  size_t len = BN_num_bytes(order);
+
+  hash_input = new unsigned char[28 * len + sizeof(size_t)];
+  hash_output = new unsigned char[SHA256_DIGEST_LENGTH];
+
+  memcpy(hash_input,
+         EC_POINT_point2hex(group, generator, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + len,
+         EC_POINT_point2hex(group, eps11, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 2 * len,
+         EC_POINT_point2hex(group, eps12, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 3 * len,
+         EC_POINT_point2hex(group, eps13, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(
+      hash_input + 4 * len,
+      EC_POINT_point2hex(group, eps11prime, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 5 * len,
+      EC_POINT_point2hex(group, eps12prime, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 6 * len,
+      EC_POINT_point2hex(group, eps13prime, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(hash_input + 7 * len,
+         EC_POINT_point2hex(group, eps21, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 8 * len,
+         EC_POINT_point2hex(group, eps22, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 9 * len,
+         EC_POINT_point2hex(group, eps23, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(
+      hash_input + 10 * len,
+      EC_POINT_point2hex(group, eps21prime, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 11 * len,
+      EC_POINT_point2hex(group, eps22prime, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 12 * len,
+      EC_POINT_point2hex(group, eps23prime, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(hash_input + 13 * len,
+         EC_POINT_point2hex(group, eps31, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(hash_input + 14 * len,
+         EC_POINT_point2hex(group, eps32, POINT_CONVERSION_COMPRESSED, ctx),
+         len);
+  memcpy(
+      hash_input + 15 * len,
+      EC_POINT_point2hex(group, eps31prime, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(
+      hash_input + 16 * len,
+      EC_POINT_point2hex(group, eps32prime, POINT_CONVERSION_COMPRESSED, ctx),
+      len);
+  memcpy(hash_input + 17 * len,
+         EC_POINT_point2hex(group, Xi, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 18 * len,
+         EC_POINT_point2hex(group, Xj, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 19 * len,
+         EC_POINT_point2hex(group, A, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 20 * len,
+         EC_POINT_point2hex(group, Bi, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 21 * len,
+         EC_POINT_point2hex(group, Bj, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 22 * len,
+         EC_POINT_point2hex(group, B, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 23 * len,
+         EC_POINT_point2hex(group, Ri, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 24 * len,
+         EC_POINT_point2hex(group, Rj, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 25 * len,
+         EC_POINT_point2hex(group, Ci, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 26 * len,
+         EC_POINT_point2hex(group, Yi, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 27 * len,
+         EC_POINT_point2hex(group, Yj, POINT_CONVERSION_COMPRESSED, ctx), len);
+  memcpy(hash_input + 28 * len, &id_, sizeof(size_t));
+
+  SHA256(hash_input, 28 * len + sizeof(size_t), hash_output);
+  BN_bin2bn(hash_output, SHA256_DIGEST_LENGTH,
+            h); // h = hash(g, eps11, eps12, eps13, eps11', eps12',
+                // eps21, eps22, eps23, eps21', eps22', eps31,
+                // eps32, eps31', eps32', Xi, Xj, A, Bi, Bj, B,
+                // Ri, Rj, Ci, Yi, Yj, id_)
+  BN_mod(h, h, order, ctx);
+
+  return h;
+}

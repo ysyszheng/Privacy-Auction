@@ -87,7 +87,12 @@ private:
                          const EC_POINT *, const EC_POINT *, const EC_POINT *,
                          const EC_POINT *, const EC_POINT *, const BIGNUM *,
                          const BIGNUM *, int, BN_CTX *);
-  void genNIZKPoWFStage2(NIZKPoWFStage2 &, BN_CTX *);
+  void genNIZKPoWFStage2(NIZKPoWFStage2 &, const EC_POINT *, const EC_POINT *,
+                         const EC_POINT *, const EC_POINT *, const EC_POINT *,
+                         const EC_POINT *, const EC_POINT *, const EC_POINT *,
+                         const EC_POINT *, const EC_POINT *, const EC_POINT *,
+                         const BIGNUM *, const BIGNUM *, const BIGNUM *, int,
+                         int, BN_CTX *);
 
   // verify non-interactive zero-knowledge proof (as verifier)
   bool verNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, size_t, BN_CTX *);
@@ -96,7 +101,6 @@ private:
   bool verNIZKPoWFStage1(NIZKPoWFStage1 &, const EC_POINT *, const EC_POINT *,
                          const EC_POINT *, const EC_POINT *, const EC_POINT *,
                          const EC_POINT *, const EC_POINT *, size_t, BN_CTX *);
-  bool verNIZKPoWFStage2(NIZKPoWFStage2 &, size_t, BN_CTX *);
 };
 
 #endif /* BIDDER_H */

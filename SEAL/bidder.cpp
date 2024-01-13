@@ -303,11 +303,9 @@ void Bidder::genNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
                                const EC_POINT *A, const EC_POINT *B,
                                const BIGNUM *x, const BIGNUM *alpha, int bit,
                                BN_CTX *ctx) {
-  size_t len;
-  unsigned char *hash_input;
-  unsigned char *hash_output;
+  assert(bit == 0 || bit == 1);
 
-  BIGNUM *r11 = BN_new(); // or r12, no matter
+  BIGNUM *r11 = BN_new(); // or r21, no matter
   BIGNUM *r12 = BN_new(); // or r22, no matter
   BIGNUM *rho11 = BN_new();
   BIGNUM *rho12 = BN_new();
@@ -539,9 +537,302 @@ bool Bidder::verNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
   return ret;
 }
 
-void Bidder::genNIZKPoWFStage2(NIZKPoWFStage2 &, BN_CTX *) {}
+void Bidder::genNIZKPoWFStage2(
+    NIZKPoWFStage2 &proof, const EC_POINT *Bi, const EC_POINT *Xi,
+    const EC_POINT *Ri, const EC_POINT *Bj, const EC_POINT *Xj,
+    const EC_POINT *Rj, const EC_POINT *Ci, const EC_POINT *A,
+    const EC_POINT *B, const EC_POINT *Yi, const EC_POINT *Yj, const BIGNUM *xi,
+    const BIGNUM *xj, const BIGNUM *alphai, int bi, int bj, BN_CTX *ctx) {
+  assert((bi == 0 || bi == 1) && (bj == 0 || bj == 1));
 
-bool Bidder::verNIZKPoWFStage2(NIZKPoWFStage2 &, size_t, BN_CTX *) {}
+  BIGNUM *r11 = BN_new(); // or r21, r31, no matter
+  BIGNUM *r12 = BN_new(); // or r22, r32, no matter
+  BIGNUM *r13 = BN_new(); // or r23, no matter, don't need r33
+  BIGNUM *rho11 = BN_new();
+  BIGNUM *rho12 = BN_new();
+  BIGNUM *rho13 = BN_new();
+  BIGNUM *rho21 = BN_new();
+  BIGNUM *rho22 = BN_new();
+  BIGNUM *rho23 = BN_new();
+  BIGNUM *rho31 = BN_new();
+  BIGNUM *rho32 = BN_new();
+  BIGNUM *rho33 = BN_new();
+  BIGNUM *ch = BN_new();
+  BIGNUM *ch1 = BN_new();
+  BIGNUM *ch2 = BN_new();
+  BIGNUM *ch3 = BN_new();
+  BIGNUM *chtmp = BN_new();
+
+  EC_POINT *eps11 = EC_POINT_new(group);
+  EC_POINT *eps12 = EC_POINT_new(group);
+  EC_POINT *eps13 = EC_POINT_new(group);
+  EC_POINT *eps11prime = EC_POINT_new(group);
+  EC_POINT *eps12prime = EC_POINT_new(group);
+  EC_POINT *eps13prime = EC_POINT_new(group);
+  EC_POINT *eps21 = EC_POINT_new(group);
+  EC_POINT *eps22 = EC_POINT_new(group);
+  EC_POINT *eps23 = EC_POINT_new(group);
+  EC_POINT *eps21prime = EC_POINT_new(group);
+  EC_POINT *eps22prime = EC_POINT_new(group);
+  EC_POINT *eps23prime = EC_POINT_new(group);
+  EC_POINT *eps31 = EC_POINT_new(group);
+  EC_POINT *eps32 = EC_POINT_new(group);
+  EC_POINT *eps31prime = EC_POINT_new(group);
+  EC_POINT *eps32prime = EC_POINT_new(group);
+  EC_POINT *tmp = EC_POINT_new(group);
+
+  BN_rand_range(r11, order);
+  BN_rand_range(r12, order);
+  BN_rand_range(r13, order);
+
+  if (bi == 1) { // => bj == 1
+    BN_rand_range(rho21, order);
+    BN_rand_range(rho22, order);
+    BN_rand_range(rho23, order);
+    BN_rand_range(rho31, order);
+    BN_rand_range(rho32, order);
+    BN_rand_range(rho33, order);
+    BN_rand_range(ch2, order);
+    BN_rand_range(ch3, order);
+
+    EC_POINT_mul(group, eps11, r11, NULL, NULL, ctx);    // eps11 = g^r11
+    EC_POINT_mul(group, eps12, r12, NULL, NULL, ctx);    // eps12 = g^r12
+    EC_POINT_mul(group, eps13, r13, NULL, NULL, ctx);    // eps13 = g^r13
+    EC_POINT_mul(group, eps11prime, NULL, Ri, r11, ctx); // eps11' = Ri^r11
+    EC_POINT_mul(group, eps12prime, NULL, Rj, r12, ctx); // eps12' = Rj^r12
+    EC_POINT_mul(group, eps11prime, NULL, B, r13, ctx);  // eps13' = B^r13
+
+    EC_POINT_mul(group, eps21, rho21, Xi, ch2, ctx); // eps21 = g^rho21 * Xi^ch2
+    EC_POINT_mul(group, eps22, rho22, Xj, ch2, ctx); // eps22 = g^rho22 * Xj^ch2
+    EC_POINT_mul(group, eps23, rho23, A, ch2, ctx);  // eps23 = g^rho23 * A^ch2
+    // eps21' = Yi^rho21 * Bi^ch2
+    EC_POINT_mul(group, eps21prime, NULL, Yi, rho21, ctx);
+    EC_POINT_mul(group, tmp, NULL, Bi, ch2, ctx);
+    EC_POINT_add(group, eps21prime, eps21prime, tmp, ctx);
+    // eps22' = Rj^rho22 * Bj^ch2
+    EC_POINT_mul(group, eps22prime, NULL, Rj, rho22, ctx);
+    EC_POINT_mul(group, tmp, NULL, Bj, ch2, ctx);
+    EC_POINT_add(group, eps22prime, eps22prime, tmp, ctx);
+    // eps23' = B^rho23 * Ci^ch2
+    EC_POINT_mul(group, eps23prime, NULL, B, rho23, ctx);
+    EC_POINT_mul(group, tmp, NULL, Ci, ch2, ctx);
+    EC_POINT_add(group, eps23prime, eps23prime, tmp, ctx);
+
+    EC_POINT_mul(group, eps31, rho31, Xi, ch3, ctx); // eps31 = g^rho31 * Xi^ch3
+    EC_POINT_mul(group, eps32, rho32, Xj, ch3, ctx); // eps32 = g^rho32 * Xj^ch3
+    // eps31' = Yi^rho31 * Bi^ch3
+    EC_POINT_mul(group, eps31prime, NULL, Yi, rho31, ctx);
+    EC_POINT_mul(group, tmp, NULL, Bi, ch3, ctx);
+    EC_POINT_add(group, eps31prime, eps31prime, tmp, ctx);
+    // eps32' = Yj^rho32 * Bj^ch3
+    EC_POINT_mul(group, eps32prime, NULL, Yj, rho32, ctx);
+    EC_POINT_mul(group, tmp, NULL, Bj, ch3, ctx);
+    EC_POINT_add(group, eps32prime, eps32prime, tmp, ctx);
+  } else { // bi == 0
+    if (bj == 1) {
+      BN_rand_range(rho11, order);
+      BN_rand_range(rho12, order);
+      BN_rand_range(rho13, order);
+      BN_rand_range(rho31, order);
+      BN_rand_range(rho32, order);
+      BN_rand_range(rho33, order);
+      BN_rand_range(ch1, order);
+      BN_rand_range(ch3, order);
+
+      EC_POINT_mul(group, eps21, r11, NULL, NULL, ctx);    // eps21 = g^r11
+      EC_POINT_mul(group, eps22, r12, NULL, NULL, ctx);    // eps22 = g^r12
+      EC_POINT_mul(group, eps23, r13, NULL, NULL, ctx);    // eps23 = g^r13
+      EC_POINT_mul(group, eps21prime, NULL, Yi, r11, ctx); // eps21' = Yi^r11
+      EC_POINT_mul(group, eps22prime, NULL, Rj, r12, ctx); // eps22' = Rj^r12
+      EC_POINT_mul(group, eps23prime, NULL, B, r13, ctx);  // eps22' = B^r13
+
+      // eps11 = g^rho11 * Xi^ch1
+      EC_POINT_mul(group, eps11, rho11, NULL, NULL, ctx); // eps11 = g^rho11
+      EC_POINT_mul(group, tmp, NULL, Xi, ch1, ctx);       // tmp = Xi^ch1
+      EC_POINT_add(group, eps11, eps11, tmp, ctx); // eps11 = g^rho11 * Xi^ch1
+      // eps12 = g^rho12 * Xj^ch1
+      EC_POINT_mul(group, eps12, rho12, NULL, NULL, ctx); // eps12 = g^rho12
+      EC_POINT_mul(group, tmp, NULL, Xj, ch1, ctx);       // tmp = Xj^ch1
+      EC_POINT_add(group, eps12, eps12, tmp, ctx); // eps12 = g^rho12 * Xj^ch1
+      // eps13 = g^rho13 * A^ch1
+      EC_POINT_mul(group, eps13, rho13, NULL, NULL, ctx); // eps13 = g^rho13
+      EC_POINT_mul(group, tmp, NULL, A, ch1, ctx);        // tmp = A^ch1
+      EC_POINT_add(group, eps13, eps13, tmp, ctx); // eps13 = g^rho13 * A^ch1
+      // eps11' = Ri^rho11 * Bi^ch1
+      EC_POINT_mul(group, eps11prime, NULL, Ri, rho11, ctx);
+      EC_POINT_mul(group, tmp, NULL, Bi, ch1, ctx);
+      EC_POINT_add(group, eps11prime, eps11prime, tmp, ctx);
+      // eps12' = Rj^rho12 * Bj^ch1
+      EC_POINT_mul(group, eps12prime, NULL, Rj, rho12, ctx);
+      EC_POINT_mul(group, tmp, NULL, Bj, ch1, ctx);
+      EC_POINT_add(group, eps12prime, eps12prime, tmp, ctx);
+      // eps13' = B^rho13 * (Ci/g)^ch1
+      EC_POINT_mul(group, eps13prime, NULL, B, rho13, ctx);
+      EC_POINT_copy(tmp, generator);                 // tmp = g
+      EC_POINT_invert(group, tmp, ctx);              // tmp = g^-1
+      EC_POINT_add(group, tmp, Ci, tmp, ctx);        // tmp = Ci/g
+      EC_POINT_mul(group, tmp, NULL, tmp, ch1, ctx); // tmp = (Ci/g)^ch1
+      EC_POINT_add(group, eps13prime, eps13prime, tmp, ctx);
+
+      EC_POINT_mul(group, eps31, rho31, Xi, ch3,
+                   ctx); // eps31 = g^rho31 * Xi^ch3
+      EC_POINT_mul(group, eps32, rho32, Xj, ch3,
+                   ctx); // eps32 = g^rho32 * Xj^ch3
+      // eps31' = Yi^rho31 * Bi^ch3
+      EC_POINT_mul(group, eps31prime, NULL, Yi, rho31, ctx);
+      EC_POINT_mul(group, tmp, NULL, Bi, ch3, ctx);
+      EC_POINT_add(group, eps31prime, eps31prime, tmp, ctx);
+      // eps32' = Yj^rho32 * Bj^ch3
+      EC_POINT_mul(group, eps32prime, NULL, Yj, rho32, ctx);
+      EC_POINT_mul(group, tmp, NULL, Bj, ch3, ctx);
+      EC_POINT_add(group, eps32prime, eps32prime, tmp, ctx);
+    } else { // bj == 0
+      BN_rand_range(rho21, order);
+      BN_rand_range(rho22, order);
+      BN_rand_range(rho23, order);
+      BN_rand_range(rho21, order);
+      BN_rand_range(rho22, order);
+      BN_rand_range(rho23, order);
+      BN_rand_range(ch1, order);
+      BN_rand_range(ch2, order);
+
+      EC_POINT_mul(group, eps31, r11, NULL, NULL, ctx);    // eps31 = g^r11
+      EC_POINT_mul(group, eps32, r12, NULL, NULL, ctx);    // eps32 = g^r12
+      EC_POINT_mul(group, eps31prime, NULL, Yi, r11, ctx); // eps31' = Yi^r11
+      EC_POINT_mul(group, eps32prime, NULL, Yj, r12, ctx); // eps32' = Yj^r12
+
+      // eps11 = g^rho11 * Xi^ch1
+      EC_POINT_mul(group, eps11, rho11, NULL, NULL, ctx); // eps11 = g^rho11
+      EC_POINT_mul(group, tmp, NULL, Xi, ch1, ctx);       // tmp = Xi^ch1
+      EC_POINT_add(group, eps11, eps11, tmp, ctx); // eps11 = g^rho11 * Xi^ch1
+      // eps12 = g^rho12 * Xj^ch1
+      EC_POINT_mul(group, eps12, rho12, NULL, NULL, ctx); // eps12 = g^rho12
+      EC_POINT_mul(group, tmp, NULL, Xj, ch1, ctx);       // tmp = Xj^ch1
+      EC_POINT_add(group, eps12, eps12, tmp, ctx); // eps12 = g^rho12 * Xj^ch1
+      // eps13 = g^rho13 * A^ch1
+      EC_POINT_mul(group, eps13, rho13, NULL, NULL, ctx); // eps13 = g^rho13
+      EC_POINT_mul(group, tmp, NULL, A, ch1, ctx);        // tmp = A^ch1
+      EC_POINT_add(group, eps13, eps13, tmp, ctx); // eps13 = g^rho13 * A^ch1
+      // eps11' = Ri^rho11 * Bi^ch1
+      EC_POINT_mul(group, eps11prime, NULL, Ri, rho11, ctx);
+      EC_POINT_mul(group, tmp, NULL, Bi, ch1, ctx);
+      EC_POINT_add(group, eps11prime, eps11prime, tmp, ctx);
+      // eps12' = Rj^rho12 * Bj^ch1
+      EC_POINT_mul(group, eps12prime, NULL, Rj, rho12, ctx);
+      EC_POINT_mul(group, tmp, NULL, Bj, ch1, ctx);
+      EC_POINT_add(group, eps12prime, eps12prime, tmp, ctx);
+      // eps13' = B^rho13 * (Ci/g)^ch1
+      EC_POINT_mul(group, eps13prime, NULL, B, rho13, ctx);
+      EC_POINT_copy(tmp, generator);                 // tmp = g
+      EC_POINT_invert(group, tmp, ctx);              // tmp = g^-1
+      EC_POINT_add(group, tmp, Ci, tmp, ctx);        // tmp = Ci/g
+      EC_POINT_mul(group, tmp, NULL, tmp, ch1, ctx); // tmp = (Ci/g)^ch1
+      EC_POINT_add(group, eps13prime, eps13prime, tmp, ctx);
+
+      // eps21 = g^rho21 * Xi^ch2
+      EC_POINT_mul(group, eps21, rho21, NULL, NULL, ctx); // eps21 = g^rho21
+      EC_POINT_mul(group, tmp, NULL, Xi, ch2, ctx);       // tmp = Xi^ch2
+      EC_POINT_add(group, eps21, eps21, tmp, ctx); // eps21 = g^rho21 * Xi^ch2
+      // eps22 = g^rho22 * Xj^ch2
+      EC_POINT_mul(group, eps22, rho22, NULL, NULL, ctx); // eps22 = g^rho22
+      EC_POINT_mul(group, tmp, NULL, Xj, ch2, ctx);       // tmp = Xj^ch2
+      EC_POINT_add(group, eps22, eps22, tmp, ctx); // eps22 = g^rho22 * Xj^ch2
+      // eps23 = g^rho23 * A^ch2
+      EC_POINT_mul(group, eps23, rho23, NULL, NULL, ctx); // eps23 = g^rho23
+      EC_POINT_mul(group, tmp, NULL, A, ch2, ctx);        // tmp = A^ch2
+      EC_POINT_add(group, eps23, eps23, tmp, ctx); // eps23 = g^rho23 * A^ch2
+      // eps21' = Yi^rho21 * Bi^ch2
+      EC_POINT_mul(group, eps21prime, NULL, Yi, rho21, ctx);
+      EC_POINT_mul(group, tmp, NULL, Bi, ch2, ctx);
+      EC_POINT_add(group, eps21prime, eps21prime, tmp, ctx);
+      // eps22' = Rj^rho22 * Bj^ch2
+      EC_POINT_mul(group, eps22prime, NULL, Rj, rho22, ctx);
+      EC_POINT_mul(group, tmp, NULL, Bj, ch2, ctx);
+      EC_POINT_add(group, eps22prime, eps22prime, tmp, ctx);
+      // eps23' = B^rho23 * Ci^ch2
+      EC_POINT_mul(group, eps23prime, NULL, B, rho23, ctx);
+      EC_POINT_mul(group, tmp, NULL, Ci, ch2, ctx);
+      EC_POINT_add(group, eps23prime, eps23prime, tmp, ctx);
+    }
+  }
+
+  ch = SHA256inNIZKPoWFStage2(group, order, generator, eps11, eps12, eps13,
+                              eps11prime, eps12prime, eps13prime, eps21, eps22,
+                              eps23, eps21prime, eps22prime, eps23prime, eps31,
+                              eps32, eps31prime, eps32prime, Xi, Xj, A, Bi, Bj,
+                              B, Ri, Rj, Ci, Yi, Yj, id_, ctx);
+
+  if (bi == 1) { // => bj == 1
+    // ch1 = ch-ch2-ch3
+    BN_mod_sub(ch1, ch, ch2, order, ctx);  // ch1 = ch-ch2
+    BN_mod_sub(ch1, ch1, ch3, order, ctx); // ch1 = ch-ch2-ch3
+    // rho11 = r11-xi*ch1
+    BN_mod_mul(chtmp, xi, ch1, order, ctx);    // chtmp = xi*ch1
+    BN_mod_sub(rho11, r11, chtmp, order, ctx); // rho11 = r11-xi*ch1
+    // rho12 = r12-xj*ch1
+    BN_mod_mul(chtmp, xj, ch1, order, ctx);    // chtmp = xj*ch1
+    BN_mod_sub(rho12, r12, chtmp, order, ctx); // rho12 = r12-xj*ch1
+    // rho13 = r13-alphai*ch1
+    BN_mod_mul(chtmp, alphai, ch1, order, ctx); // chtmp = alphai*ch1
+    BN_mod_sub(rho13, r13, chtmp, order, ctx);  // rho13 = r13-alphai*ch1
+  } else {                                      // bi == 0
+    if (bj == 1) {
+      // ch2 = ch-ch1-ch3
+      BN_mod_sub(ch2, ch, ch1, order, ctx);  // ch2 = ch-ch1
+      BN_mod_sub(ch2, ch2, ch3, order, ctx); // ch2 = ch-ch1-ch3
+      // rho21 = r11-xi*ch2
+      BN_mod_mul(chtmp, xi, ch2, order, ctx);    // chtmp = xi*ch2
+      BN_mod_sub(rho21, r11, chtmp, order, ctx); // rho21 = r11-xi*ch2
+      // rho22 = r12-xj*ch2
+      BN_mod_mul(chtmp, xj, ch2, order, ctx);    // chtmp = xj*ch2
+      BN_mod_sub(rho22, r12, chtmp, order, ctx); // rho22 = r12-xj*ch2
+      // rho23 = r13-alphai*ch2
+      BN_mod_mul(chtmp, alphai, ch2, order, ctx); // chtmp = alphai*ch2
+      BN_mod_sub(rho23, r13, chtmp, order, ctx);  // rho23 = r13-alphai*ch2
+    } else {                                      // bj == 0
+      // ch3 = ch-ch1-ch2
+      BN_mod_sub(ch3, ch, ch1, order, ctx);  // ch3 = ch-ch1
+      BN_mod_sub(ch3, ch3, ch2, order, ctx); // ch3 = ch-ch1-ch2
+      // rho31 = r11-xi*ch3
+      BN_mod_mul(chtmp, xi, ch3, order, ctx);    // chtmp = xi*ch3
+      BN_mod_sub(rho31, r11, chtmp, order, ctx); // rho31 = r11-xi*ch3
+      // rho32 = r12-xj*ch3
+      BN_mod_mul(chtmp, xj, ch3, order, ctx);    // chtmp = xj*ch3
+      BN_mod_sub(rho32, r12, chtmp, order, ctx); // rho32 = r12-xj*ch3
+    }
+  }
+
+  proof.eps11 = eps11;
+  proof.eps12 = eps12;
+  proof.eps13 = eps13;
+  proof.eps11prime = eps11prime;
+  proof.eps12prime = eps12prime;
+  proof.eps13prime = eps13prime;
+  proof.eps21 = eps21;
+  proof.eps22 = eps22;
+  proof.eps23 = eps23;
+  proof.eps21prime = eps21prime;
+  proof.eps22prime = eps22prime;
+  proof.eps23prime = eps23prime;
+  proof.eps31 = eps31;
+  proof.eps32 = eps32;
+  proof.eps31prime = eps31prime;
+  proof.eps32prime = eps32prime;
+  proof.rho11 = rho11;
+  proof.rho12 = rho12;
+  proof.rho13 = rho13;
+  proof.rho21 = rho21;
+  proof.rho22 = rho22;
+  proof.rho23 = rho23;
+  proof.rho31 = rho31;
+  proof.rho32 = rho32;
+  proof.ch2 = ch2;
+  proof.ch3 = ch3;
+}
+
+bool Bidder::verNIZKPoWFStage2(NIZKPoWFStage2 &, size_t, BN_CTX *) {
+  
+}
 
 /**
  * @brief In the Commit phase, bidders commit their bids to the public
