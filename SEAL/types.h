@@ -4,7 +4,7 @@
 
 typedef struct {
   // FIXME: not pass pointer, pass by value
-} ENCODER;
+} ENCODED_BID;
 
 /**
  * @brief Non-interactive zero-knowledge proof of knowledge of discrete

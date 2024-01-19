@@ -211,6 +211,7 @@ void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
 
 /**
  * @brief Verify a Non-interactive zero-knowledge proof of well-formedness
+ * of commitment
  *
  * @param proof NIZKPoWFCom
  * @param phi
@@ -282,7 +283,8 @@ bool Bidder::verNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
 }
 
 /**
- * @brief
+ * @brief Generate a Non-interactive zero-knowledge proof of well-formedness
+ * of stage 1
  *
  * @param proof
  * @param b B in paper
@@ -434,6 +436,23 @@ void Bidder::genNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
   proof.ch2 = ch2;
 }
 
+/**
+ * @brief Verify a Non-interactive zero-knowledge proof of well-formedness
+ * of stage 1
+ *
+ * @param proof
+ * @param b
+ * @param X
+ * @param Y
+ * @param R
+ * @param c
+ * @param A
+ * @param B
+ * @param id
+ * @param ctx
+ * @return true
+ * @return false
+ */
 bool Bidder::verNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
                                const EC_POINT *X, const EC_POINT *Y,
                                const EC_POINT *R, const EC_POINT *c,
@@ -537,6 +556,30 @@ bool Bidder::verNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
   return ret;
 }
 
+/**
+ * @brief Generate a Non-interactive zero-knowledge proof of well-formedness
+ * of stage 1
+ *
+ * @param proof result NIZKPoWFStage2
+ * @param Bi encoded bit in current step
+ * @param Xi public key X in current step
+ * @param Ri public key R in current step
+ * @param Bj encoded bit in previous step
+ * @param Xj public key X in previous step
+ * @param Rj public key R in previous step
+ * @param Ci commitment phi in current step
+ * @param A commitment A in current step
+ * @param B commitment B in current step
+ * ($Y=\frac{\prod_{i=1}^{id-1}X_j}{\prod_{i=id+1}^{n}X_j}$)
+ * @param Yi Y in current step
+ * @param Yj Y in previous step
+ * @param xi private key x in current step
+ * @param xj private key x in previous step
+ * @param alphai random element alpha used in commitment of current step
+ * @param bi (plaintext) bit in current step
+ * @param bj (plaintext) bit in previous step
+ * @param ctx
+ */
 void Bidder::genNIZKPoWFStage2(
     NIZKPoWFStage2 &proof, const EC_POINT *Bi, const EC_POINT *Xi,
     const EC_POINT *Ri, const EC_POINT *Bj, const EC_POINT *Xj,
@@ -830,6 +873,27 @@ void Bidder::genNIZKPoWFStage2(
   proof.ch3 = ch3;
 }
 
+/**
+ * @brief Verify a Non-interactive zero-knowledge proof of well-formedness
+ * of stage 2
+ *
+ * @param proof
+ * @param Bi
+ * @param Xi
+ * @param Ri
+ * @param Bj
+ * @param Xj
+ * @param Rj
+ * @param Ci
+ * @param A
+ * @param B
+ * @param Yi
+ * @param Yj
+ * @param id
+ * @param ctx
+ * @return true
+ * @return false
+ */
 bool Bidder::verNIZKPoWFStage2(NIZKPoWFStage2 &proof, const EC_POINT *Bi,
                                const EC_POINT *Xi, const EC_POINT *Ri,
                                const EC_POINT *Bj, const EC_POINT *Xj,
@@ -1168,7 +1232,7 @@ bool Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs) {
 RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
   RoundTwoPub pub;
   BN_CTX *ctx = BN_CTX_new();
-  EC_POINT *b = EC_POINT_new(group);
+  EC_POINT *b = EC_POINT_new(group); // encoded bit
   EC_POINT *Y = EC_POINT_new(group);
   EC_POINT *firstHalfSum = EC_POINT_new(group);
   EC_POINT *secondHalfSum = EC_POINT_new(group);
@@ -1199,11 +1263,11 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
   }
 
   pub.b = b;
+  encodedInfos.push_back(EncodedInfo{b, Y});
 
   if (!junctionFlag) {
     // Generate NIZKPoWFStage1
     pub.stage = STAGE1;
-
     genNIZKPoWFStage1(pub.powf.powfstage1, b, keys[step].X, Y, keys[step].R,
                       commitments[step].phi, commitments[step].A,
                       commitments[step].B, keys[step].x,
@@ -1211,7 +1275,12 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
   } else {
     // Generate NIZKPoWFStage2
     pub.stage = STAGE2;
-    genNIZKPoWFStage2(pub.powf.powfstage2, ctx);
+    genNIZKPoWFStage2(pub.powf.powfstage2, b, keys[step].X, keys[step].R, encodedInfos[prevDecidingStep].b,
+                      keys[prevDecidingStep].X, keys[prevDecidingStep].R,
+                      commitments[step].phi, commitments[step].A,
+                      commitments[step].B, Y, encodedInfos[prevDecidingStep].Y, keys[step].x,
+                      keys[prevDecidingStep].x, commitments[step].alpha, bit,
+                      prevDecidingBit, ctx);
   }
 
   return pub;
@@ -1245,7 +1314,8 @@ size_t Bidder::roundThree(const std::vector<RoundTwoPub> pubs, size_t step) {
   }
 
   if (!EC_POINT_is_at_infinity(group, sum)) {
-    // exist bidder encodes bit 1 in this step
+    // exist bidder encodes bit 1 in this step, i.e. this step is *deciding
+    // step*
     junctionFlag = true;
     prevDecidingStep = step;
     prevDecidingBit &= (binaryBidStr[step] - '0');

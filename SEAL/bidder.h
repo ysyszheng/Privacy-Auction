@@ -41,6 +41,7 @@ public:
   bool verifyRoundTwo(std::vector<RoundTwoPub>, size_t);
 
 private:
+  // FIXME: attention to memory leak, use smart pointer
   struct Commitment {
     EC_POINT *phi;
     EC_POINT *A;
@@ -54,6 +55,11 @@ private:
     EC_POINT *R;
     BIGNUM *x;
     BIGNUM *r;
+  };
+
+  struct EncodedInfo {
+    EC_POINT *b; // encoded bid
+    EC_POINT *Y;
   };
 
   size_t id_;
@@ -74,6 +80,7 @@ private:
   // self information (public & private)
   std::vector<Commitment> commitments;
   std::vector<Key> keys;
+  std::vector<EncodedInfo> encodedInfos;
 
   // information on Public BB(Bulletin Board)
   std::vector<CommitmentPub> commitmentsBB;
