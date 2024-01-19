@@ -101,6 +101,12 @@ private:
   bool verNIZKPoWFStage1(NIZKPoWFStage1 &, const EC_POINT *, const EC_POINT *,
                          const EC_POINT *, const EC_POINT *, const EC_POINT *,
                          const EC_POINT *, const EC_POINT *, size_t, BN_CTX *);
+  bool verNIZKPoWFStage2(NIZKPoWFStage2 &, const EC_POINT *Bi, const EC_POINT *Xi,
+                               const EC_POINT *Ri, const EC_POINT *Bj,
+                               const EC_POINT *Xj, const EC_POINT *Rj,
+                               const EC_POINT *Ci, const EC_POINT *A,
+                               const EC_POINT *B, const EC_POINT *Yi,
+                               const EC_POINT *Yj, size_t, BN_CTX *);
 };
 
 #endif /* BIDDER_H */

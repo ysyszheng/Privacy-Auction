@@ -830,8 +830,194 @@ void Bidder::genNIZKPoWFStage2(
   proof.ch3 = ch3;
 }
 
-bool Bidder::verNIZKPoWFStage2(NIZKPoWFStage2 &, size_t, BN_CTX *) {
-  
+bool Bidder::verNIZKPoWFStage2(NIZKPoWFStage2 &proof, const EC_POINT *Bi,
+                               const EC_POINT *Xi, const EC_POINT *Ri,
+                               const EC_POINT *Bj, const EC_POINT *Xj,
+                               const EC_POINT *Rj, const EC_POINT *Ci,
+                               const EC_POINT *A, const EC_POINT *B,
+                               const EC_POINT *Yi, const EC_POINT *Yj,
+                               size_t id, BN_CTX *ctx) {
+  bool ret = true;
+  BIGNUM *ch = BN_new();
+  BIGNUM *ch1 = BN_new();
+  BIGNUM *ch2 = BN_new();
+  BIGNUM *ch3 = BN_new();
+  EC_POINT *tmp1 = EC_POINT_new(group);
+  EC_POINT *tmp2 = EC_POINT_new(group);
+
+  ch = SHA256inNIZKPoWFStage2(
+      group, order, generator, proof.eps11, proof.eps12, proof.eps13,
+      proof.eps11prime, proof.eps12prime, proof.eps13prime, proof.eps21,
+      proof.eps22, proof.eps23, proof.eps21prime, proof.eps22prime,
+      proof.eps23prime, proof.eps31, proof.eps32, proof.eps31prime,
+      proof.eps32prime, Xi, Xj, A, Bi, Bj, B, Ri, Rj, Ci, Yi, Yj, id, ctx);
+  BN_mod_sub(ch1, ch, proof.ch2, order, ctx);  // ch1 = ch-ch2
+  BN_mod_sub(ch1, ch1, proof.ch3, order, ctx); // ch1 = ch-ch2-ch3
+
+  // check 1: g^rho11 * Xi^ch1 == eps11
+  EC_POINT_mul(group, tmp1, proof.rho11, NULL, NULL, ctx); // tmp1 = g^rho11
+  EC_POINT_mul(group, tmp2, NULL, Xi, ch1, ctx);           // tmp2 = Xi^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho11 * Xi^ch1
+  if (EC_POINT_cmp(group, tmp2, proof.eps11, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 1");
+    ret = false;
+  }
+
+  // check 2: g^rho12 * Xj^ch1 == eps12
+  EC_POINT_mul(group, tmp1, proof.rho12, NULL, NULL, ctx); // tmp1 = g^rho12
+  EC_POINT_mul(group, tmp2, NULL, Xj, ch1, ctx);           // tmp2 = Xj^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho12 * Xj^ch1
+  if (EC_POINT_cmp(group, tmp2, proof.eps12, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 2");
+    ret = false;
+  }
+
+  // check 3: g^rho13 * A^ch1 == eps13
+  EC_POINT_mul(group, tmp1, proof.rho13, NULL, NULL, ctx); // tmp1 = g^rho13
+  EC_POINT_mul(group, tmp2, NULL, A, ch1, ctx);            // tmp2 = A^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho13 * A^ch1
+  if (EC_POINT_cmp(group, tmp2, proof.eps13, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 3");
+    ret = false;
+  }
+
+  // check 4: Ri^rho11 * Bi^ch1 == eps11prime
+  EC_POINT_mul(group, tmp1, NULL, Ri, proof.rho11, ctx); // tmp1 = Ri^rho11
+  EC_POINT_mul(group, tmp2, NULL, Bi, ch1, ctx);         // tmp2 = Bi^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = Ri^rho11 * Bi^ch1
+  if (EC_POINT_cmp(group, tmp2, proof.eps11prime, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 4");
+    ret = false;
+  }
+
+  // check 5: Rj^rho12 * Bj^ch1 == eps12prime
+  EC_POINT_mul(group, tmp1, NULL, Rj, proof.rho12, ctx); // tmp1 = Rj^rho12
+  EC_POINT_mul(group, tmp2, NULL, Bj, ch1, ctx);         // tmp2 = Bj^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = Rj^rho12 * Bj^ch1
+  if (EC_POINT_cmp(group, tmp2, proof.eps12prime, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 5");
+    ret = false;
+  }
+
+  // check 6: B^rho13 * (Ci/g)^ch1 == eps13prime
+  EC_POINT_mul(group, tmp1, NULL, B, proof.rho13, ctx); // tmp1 = B^rho13
+  EC_POINT_copy(tmp2, generator);                       // tmp2 = g
+  EC_POINT_invert(group, tmp2, ctx);                    // tmp2 = g^-1
+  EC_POINT_add(group, tmp2, Ci, tmp2, ctx);             // tmp2 = Ci/g
+  EC_POINT_mul(group, tmp2, NULL, tmp2, ch1, ctx);      // tmp2 = (Ci/g)^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = B^rho13 * (Ci/g)^ch1
+  if (EC_POINT_cmp(group, tmp2, proof.eps13prime, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 6");
+    ret = false;
+  }
+
+  // check 7: g^rho21 * Xi^ch2 == eps21
+  EC_POINT_mul(group, tmp1, proof.rho21, NULL, NULL, ctx); // tmp1 = g^rho21
+  EC_POINT_mul(group, tmp2, NULL, Xi, ch2, ctx);           // tmp2 = Xi^ch2
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho21 * Xi^ch2
+  if (EC_POINT_cmp(group, tmp2, proof.eps21, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 7");
+    ret = false;
+  }
+
+  // check 8: g^rho22 * Xj^ch2 == eps22
+  EC_POINT_mul(group, tmp1, proof.rho22, NULL, NULL, ctx); // tmp1 = g^rho22
+  EC_POINT_mul(group, tmp2, NULL, Xj, ch2, ctx);           // tmp2 = Xj^ch2
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho22 * Xj^ch2
+  if (EC_POINT_cmp(group, tmp2, proof.eps22, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 8");
+    ret = false;
+  }
+
+  // check 9: g^rho23 * A^ch2 == eps23
+  EC_POINT_mul(group, tmp1, proof.rho23, NULL, NULL, ctx); // tmp1 = g^rho23
+  EC_POINT_mul(group, tmp2, NULL, A, ch2, ctx);            // tmp2 = A^ch2
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho23 * A^ch2
+  if (EC_POINT_cmp(group, tmp2, proof.eps23, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 9");
+    ret = false;
+  }
+
+  // check 10: Yi^rho21 * Bi^ch2 == eps21prime
+  EC_POINT_mul(group, tmp1, NULL, Yi, proof.rho21, ctx); // tmp1 = Yi^rho21
+  EC_POINT_mul(group, tmp2, NULL, Bi, ch2, ctx);         // tmp2 = Bi^ch2
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = Yi^rho21 * Bi^ch2
+  if (EC_POINT_cmp(group, tmp2, proof.eps21prime, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 10");
+    ret = false;
+  }
+
+  // check 11: Rj^rho22 * Bj^ch2 == eps22prime
+  EC_POINT_mul(group, tmp1, NULL, Rj, proof.rho22, ctx); // tmp1 = Rj^rho22
+  EC_POINT_mul(group, tmp2, NULL, Bj, ch2, ctx);         // tmp2 = Bj^ch2
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = Rj^rho22 * Bj^ch2
+  if (EC_POINT_cmp(group, tmp2, proof.eps22prime, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 11");
+    ret = false;
+  }
+
+  // check 12: B^rho23 * Ci^ch2 == eps23prime
+  EC_POINT_mul(group, tmp1, NULL, B, proof.rho23, ctx); // tmp1 = B^rho23
+  EC_POINT_mul(group, tmp2, NULL, Ci, ch2, ctx);        // tmp2 = Ci^ch2
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = B^rho23 * Ci^ch2
+  if (EC_POINT_cmp(group, tmp2, proof.eps23prime, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 12");
+    ret = false;
+  }
+
+  // check 13: g^rho31 * Xi^ch3 == eps31
+  EC_POINT_mul(group, tmp1, proof.rho31, NULL, NULL, ctx); // tmp1 = g^rho31
+  EC_POINT_mul(group, tmp2, NULL, Xi, ch3, ctx);           // tmp2 = Xi^ch3
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho31 * Xi^ch3
+  if (EC_POINT_cmp(group, tmp2, proof.eps31, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 13");
+    ret = false;
+  }
+
+  // check 14: g^rho32 * Xj^ch3 == eps32
+  EC_POINT_mul(group, tmp1, proof.rho32, NULL, NULL, ctx); // tmp1 = g^rho32
+  EC_POINT_mul(group, tmp2, NULL, Xj, ch3, ctx);           // tmp2 = Xj^ch3
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = g^rho32 * Xj^ch3
+  if (EC_POINT_cmp(group, tmp2, proof.eps32, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 14");
+    ret = false;
+  }
+
+  // check 15: Yi^rho31 * Bi^ch3 == eps31prime
+  EC_POINT_mul(group, tmp1, NULL, Yi, proof.rho31, ctx); // tmp1 = Yi^rho31
+  EC_POINT_mul(group, tmp2, NULL, Bi, ch3, ctx);         // tmp2 = Bi^ch3
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = Yi^rho31 * Bi^ch3
+  if (EC_POINT_cmp(group, tmp2, proof.eps31prime, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 15");
+    ret = false;
+  }
+
+  // check 16: Yj^rho32 * Bj^ch3 == eps32prime
+  EC_POINT_mul(group, tmp1, NULL, Yj, proof.rho32, ctx); // tmp1 = Yj^rho32
+  EC_POINT_mul(group, tmp2, NULL, Bj, ch3, ctx);         // tmp2 = Bj^ch3
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = Yj^rho32 * Bj^ch3
+  if (EC_POINT_cmp(group, tmp2, proof.eps32prime, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id << ": check 16");
+    ret = false;
+  }
+
+  return ret;
 }
 
 /**
