@@ -25,7 +25,7 @@
 
 class Bidder {
 public:
-  Bidder(size_t, size_t);
+  Bidder(size_t, size_t, size_t);
 
   size_t getId();
   size_t getBid();
@@ -57,14 +57,10 @@ private:
     BIGNUM *r;
   };
 
-  struct EncodedInfo {
-    EC_POINT *b; // encoded bid
-    EC_POINT *Y;
-  };
-
   size_t id_;
   size_t bid_;
   size_t c_;
+  size_t n_;
 
   size_t maxBid;
   std::string binaryBidStr;
@@ -80,10 +76,13 @@ private:
   // self information (public & private)
   std::vector<Commitment> commitments;
   std::vector<Key> keys;
-  std::vector<EncodedInfo> encodedInfos;
 
   // information on Public BB(Bulletin Board)
   std::vector<CommitmentPub> commitmentsBB;
+
+  // Auxilary information
+  AuxilaryInfo curInfo;
+  AuxilaryInfo prevDecidingInfo;
 
   // generate non-interactive zero-knowledge proof (as prover)
   void genNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, const BIGNUM *,

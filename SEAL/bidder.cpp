@@ -16,8 +16,8 @@ using namespace std;
  * @param id ID of bidder, should start from 0
  * @param c Number of bits in bid
  */
-Bidder::Bidder(size_t id, size_t c)
-    : id_(id), c_(c), maxBid(0), junctionFlag(false), prevDecidingBit(1),
+Bidder::Bidder(size_t id, size_t c, size_t n)
+    : id_(id), c_(c), n_(n), maxBid(0), junctionFlag(false), prevDecidingBit(1),
       commitments(c), keys(c) {
   assert(c <= C_MAX);
 
@@ -39,6 +39,9 @@ Bidder::Bidder(size_t id, size_t c)
   if (NULL == (order = EC_GROUP_get0_order(group))) {
     ERR_print_errors_fp(stderr);
   }
+
+  curInfo.resize(n);
+  prevDecidingInfo.resize(n);
 }
 
 /**
@@ -287,13 +290,13 @@ bool Bidder::verNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
  * of stage 1
  *
  * @param proof
- * @param b B in paper
+ * @param b B in paper, encoded bit in current step
  * @param X
  * @param Y
  * @param R
  * @param c phi, c, or C in paper
  * @param A
- * @param B \bar{B} in paper
+ * @param B \bar{B} in paper, commitment B in current step
  * @param x
  * @param alpha
  * @param bit
@@ -1196,6 +1199,9 @@ RoundOnePub Bidder::roundOne(size_t step) {
   pub.X = X;
   pub.R = R;
 
+  curInfo[id_].X = X;
+  curInfo[id_].R = R;
+
   // Generate NIZKoKDLog
   genNIZKPoKDLog(pub.pokdlogX, X, x, ctx);
   genNIZKPoKDLog(pub.pokdlogR, R, r, ctx);
@@ -1217,6 +1223,8 @@ bool Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs) {
     if (i != id_) {
       ret &= verNIZKPoKDLog(pubs[i].pokdlogX, pubs[i].X, i, ctx);
       ret &= verNIZKPoKDLog(pubs[i].pokdlogR, pubs[i].R, i, ctx);
+      curInfo[i].X = pubs[i].X;
+      curInfo[i].R = pubs[i].R;
     }
   }
   return ret;
@@ -1233,29 +1241,31 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
   RoundTwoPub pub;
   BN_CTX *ctx = BN_CTX_new();
   EC_POINT *b = EC_POINT_new(group); // encoded bit
-  EC_POINT *Y = EC_POINT_new(group);
   EC_POINT *firstHalfSum = EC_POINT_new(group);
   EC_POINT *secondHalfSum = EC_POINT_new(group);
 
   int bit = binaryBidStr[step] - '0';
 
-  EC_POINT_set_to_infinity(group, firstHalfSum);
-  for (size_t i = 0; i < id_; ++i) {
-    EC_POINT_add(group, firstHalfSum, firstHalfSum, pubs[i].X, ctx);
-  }
+  // calaulate Y for each bidder
+  for (size_t id = 0; id < n_; ++id) {
+    EC_POINT_set_to_infinity(group, firstHalfSum);
+    for (size_t i = 0; i < id; ++i) {
+      EC_POINT_add(group, firstHalfSum, firstHalfSum, pubs[i].X, ctx);
+    }
 
-  EC_POINT_set_to_infinity(group, secondHalfSum);
-  for (size_t i = id_ + 1; i < pubs.size(); ++i) {
-    EC_POINT_add(group, secondHalfSum, secondHalfSum, pubs[i].X, ctx);
-  }
+    EC_POINT_set_to_infinity(group, secondHalfSum);
+    for (size_t i = id + 1; i < pubs.size(); ++i) {
+      EC_POINT_add(group, secondHalfSum, secondHalfSum, pubs[i].X, ctx);
+    }
 
-  EC_POINT_invert(group, secondHalfSum, ctx);
-  EC_POINT_add(group, Y, firstHalfSum, secondHalfSum, ctx);
+    EC_POINT_invert(group, secondHalfSum, ctx);
+    EC_POINT_add(group, curInfo[id].Y, firstHalfSum, secondHalfSum, ctx);
+  }
 
   if ((!junctionFlag && bit == 0) ||
       (junctionFlag && (bit == 0 || prevDecidingBit == 0))) {
     // PRINT_MESSAGE("Bidder " << id_ << " encodes bit 0 in step " << step)
-    EC_POINT_mul(group, b, NULL, Y, keys[step].x, ctx);
+    EC_POINT_mul(group, b, NULL, curInfo[id_].Y, keys[step].x, ctx);
   } else { // (!junctionFlag && bit == 1) || (junctionFlag && bit == 1 &&
            // prevDecidingBit == 1))
     // PRINT_MESSAGE("Bidder " << id_ << " encodes bit 1 in step " << step)
@@ -1263,22 +1273,23 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
   }
 
   pub.b = b;
-  encodedInfos.push_back(EncodedInfo{b, Y});
+  curInfo[id_].b = b;
 
   if (!junctionFlag) {
     // Generate NIZKPoWFStage1
     pub.stage = STAGE1;
-    genNIZKPoWFStage1(pub.powf.powfstage1, b, keys[step].X, Y, keys[step].R,
-                      commitments[step].phi, commitments[step].A,
+    genNIZKPoWFStage1(pub.powf.powfstage1, b, keys[step].X, curInfo[id_].Y,
+                      keys[step].R, commitments[step].phi, commitments[step].A,
                       commitments[step].B, keys[step].x,
                       commitments[step].alpha, bit, ctx);
   } else {
     // Generate NIZKPoWFStage2
     pub.stage = STAGE2;
-    genNIZKPoWFStage2(pub.powf.powfstage2, b, keys[step].X, keys[step].R, encodedInfos[prevDecidingStep].b,
-                      keys[prevDecidingStep].X, keys[prevDecidingStep].R,
-                      commitments[step].phi, commitments[step].A,
-                      commitments[step].B, Y, encodedInfos[prevDecidingStep].Y, keys[step].x,
+    genNIZKPoWFStage2(pub.powf.powfstage2, b, keys[step].X, keys[step].R,
+                      prevDecidingInfo[id_].b, keys[prevDecidingStep].X,
+                      keys[prevDecidingStep].R, commitments[step].phi,
+                      commitments[step].A, commitments[step].B, curInfo[id_].Y,
+                      prevDecidingInfo[id_].Y, keys[step].x,
                       keys[prevDecidingStep].x, commitments[step].alpha, bit,
                       prevDecidingBit, ctx);
   }
@@ -1295,7 +1306,32 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
  * valid, false otherwise
  */
 bool Bidder::verifyRoundTwo(std::vector<RoundTwoPub> pubs, size_t step) {
-  return true;
+  bool ret = true;
+  BN_CTX *ctx = BN_CTX_new();
+
+  for (size_t i = 0; i < pubs.size(); ++i) {
+    if (i != id_) {
+      curInfo[i].b = pubs[i].b;
+
+      if (!junctionFlag) {
+        assert(pubs[i].stage == STAGE1);
+        ret &= verNIZKPoWFStage1(
+            pubs[i].powf.powfstage1, curInfo[i].b, curInfo[i].X, curInfo[i].Y,
+            curInfo[i].R, commitmentsBB[i][step].phi, commitmentsBB[i][step].A,
+            commitmentsBB[i][step].B, i, ctx);
+      } else {
+        assert(pubs[i].stage == STAGE2);
+        ret &= verNIZKPoWFStage2(
+            pubs[i].powf.powfstage2, curInfo[i].b, curInfo[i].X, curInfo[i].R,
+            prevDecidingInfo[i].b, prevDecidingInfo[i].X, prevDecidingInfo[i].R,
+            commitmentsBB[i][step].phi, commitmentsBB[i][step].A,
+            commitmentsBB[i][step].B, curInfo[i].Y, prevDecidingInfo[i].Y, i,
+            ctx);
+      }
+    }
+  }
+
+  return ret;
 }
 
 /**
@@ -1320,7 +1356,17 @@ size_t Bidder::roundThree(const std::vector<RoundTwoPub> pubs, size_t step) {
     prevDecidingStep = step;
     prevDecidingBit &= (binaryBidStr[step] - '0');
     maxBid |= (1 << (c_ - step - 1));
+
+    // prevDecidingInfo = curInfo
+    for (size_t i = 0; i < n_; ++i) {
+      prevDecidingInfo[i].X = curInfo[i].X;
+      prevDecidingInfo[i].R = curInfo[i].R;
+      prevDecidingInfo[i].Y = curInfo[i].Y;
+      prevDecidingInfo[i].b = curInfo[i].b;
+    }
+
     return 1;
   }
+
   return 0;
 }

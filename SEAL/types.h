@@ -119,6 +119,15 @@ typedef struct {
   NIZKPoKDLog pokdlogR;
 } RoundOnePub;
 
+typedef struct {
+  EC_POINT *b;
+  EC_POINT *Y;
+  EC_POINT *X;
+  EC_POINT *R;
+} AuxilaryInfoPerBidder;
+
+typedef std::vector<AuxilaryInfoPerBidder> AuxilaryInfo;
+
 typedef enum { STAGE1, STAGE2 } stagetpye_t;
 
 typedef struct {

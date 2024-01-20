@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
 
   // Initialization phase
   for (size_t i = 0; i < n; ++i) {
-    bidders.push_back(Bidder(i, c));
+    bidders.push_back(Bidder(i, c, n));
     bids.push_back(bidders[i].getBid());
   }
 
@@ -48,6 +48,8 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  PRINT_MESSAGE("Finished verification of commitments.");
+
   // Auction phase
   for (size_t i = 0; i < c; ++i) {
     roundOnePubs.clear();
@@ -68,11 +70,18 @@ int main(int argc, char *argv[]) {
       roundTwoPubs.push_back(bidders[j].roundTwo(roundOnePubs, i));
     }
 
-    // TODO: verify round two
+    for (size_t j = 0; j < n; ++j) {
+      if (!bidders[j].verifyRoundTwo(roundTwoPubs, i)) {
+        PRINT_ERROR("Bidder " << j << " failed to verify round two in step "
+                              << i << ".");
+      }
+    }
 
     for (size_t j = 0; j < n; ++j) {
       bidders[j].roundThree(roundTwoPubs, i);
     }
+
+    PRINT_MESSAGE("Finished step " << i << ".");
   }
 
   // test
@@ -81,7 +90,7 @@ int main(int argc, char *argv[]) {
       PRINT_ERROR("Bidder " << i << " failed to calculate max bid.");
     }
   }
-  PRINT_MESSAGE("Finished auction.");
+  PRINT_MESSAGE("Finished auction, max bid: " << maxBid);
 
   return 0;
 }
