@@ -26,4 +26,6 @@
             << __FILE__ << ":" << __LINE__ << ": \n"                           \
             << msg << DIVIDER << std::endl
 
+// #define PRINT_INVISABLE(msg) 
+
 #endif // PARAMS_H

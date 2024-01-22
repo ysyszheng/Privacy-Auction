@@ -59,6 +59,8 @@ int main(int argc, char *argv[]) {
       roundOnePubs.push_back(bidders[j].roundOne(i));
     }
 
+    PRINT_MESSAGE("Finished round one in step " << i << ".");
+
     for (size_t j = 0; j < n; ++j) {
       if (!bidders[j].verifyRoundOne(roundOnePubs)) {
         PRINT_ERROR("Bidder " << j << " failed to verify round one in step "
@@ -66,9 +68,13 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    PRINT_MESSAGE("Finished verification of round one in step " << i << ".");
+
     for (size_t j = 0; j < n; ++j) {
       roundTwoPubs.push_back(bidders[j].roundTwo(roundOnePubs, i));
     }
+
+    PRINT_MESSAGE("Finished round two in step " << i << ".");
 
     for (size_t j = 0; j < n; ++j) {
       if (!bidders[j].verifyRoundTwo(roundTwoPubs, i)) {
@@ -76,6 +82,8 @@ int main(int argc, char *argv[]) {
                               << i << ".");
       }
     }
+
+    PRINT_MESSAGE("Finished verification of round two in step " << i << ".");
 
     for (size_t j = 0; j < n; ++j) {
       bidders[j].roundThree(roundTwoPubs, i);
@@ -90,7 +98,9 @@ int main(int argc, char *argv[]) {
       PRINT_ERROR("Bidder " << i << " failed to calculate max bid.");
     }
   }
-  PRINT_MESSAGE("Finished auction, max bid: " << maxBid);
+  PRINT_MESSAGE("Finished auction, all bidder calculated max bid.\nMax bid: "
+                << maxBid << ", Max bid (in binary): "
+                << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
 
   return 0;
 }

@@ -42,6 +42,16 @@ Bidder::Bidder(size_t id, size_t c, size_t n)
 
   curInfo.resize(n);
   prevDecidingInfo.resize(n);
+  for (size_t i = 0; i < n; ++i) {
+    curInfo[i].b = EC_POINT_new(group);
+    curInfo[i].X = EC_POINT_new(group);
+    curInfo[i].Y = EC_POINT_new(group);
+    curInfo[i].R = EC_POINT_new(group);
+    prevDecidingInfo[i].b = EC_POINT_new(group);
+    prevDecidingInfo[i].X = EC_POINT_new(group);
+    prevDecidingInfo[i].Y = EC_POINT_new(group);
+    prevDecidingInfo[i].R = EC_POINT_new(group);
+  }
 }
 
 /**
@@ -84,7 +94,7 @@ void Bidder::genNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
   BN_rand_range(v, order);
   EC_POINT_mul(group, g_to_v, v, NULL, NULL, ctx);
 
-  h = SHA256inNIZKPoKDLog(group, order, generator, g_to_v, g_to_x, id_, ctx);
+  SHA256inNIZKPoKDLog(h, group, order, generator, g_to_v, g_to_x, id_, ctx);
 
   BN_mod_mul(h, h, x, order, ctx);   // h = h*x = ch*x
   BN_mod_sub(rho, v, h, order, ctx); // rho = v-h = v-ch*x
@@ -109,7 +119,7 @@ bool Bidder::verNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
   EC_POINT *g_to_rho = EC_POINT_new(group);
   EC_POINT *X_to_h = EC_POINT_new(group);
 
-  h = SHA256inNIZKPoKDLog(group, order, generator, proof.eps, X, id, ctx);
+  SHA256inNIZKPoKDLog(h, group, order, generator, proof.eps, X, id, ctx);
 
   // check: g^rho * X^h == eps
   EC_POINT_mul(group, g_to_rho, proof.rho, NULL, NULL, ctx);
@@ -189,8 +199,8 @@ void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
     EC_POINT_mul(group, eps22, NULL, B, r1, ctx); // eps22 = g^(beta*r1)
   }
 
-  ch = SHA256inNIZKPoWFCom(group, order, generator, eps11, eps12, eps21, eps22,
-                           phi, A, B, id_, ctx);
+  SHA256inNIZKPoWFCom(ch, group, order, generator, eps11, eps12, eps21, eps22,
+                      phi, A, B, id_, ctx);
 
   if (bit == 0) {
     BN_mod_sub(ch1, ch, ch2, order, ctx);    // ch1 = ch-ch2
@@ -234,8 +244,8 @@ bool Bidder::verNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
   EC_POINT *tmp1 = EC_POINT_new(group);
   EC_POINT *tmp2 = EC_POINT_new(group);
 
-  ch = SHA256inNIZKPoWFCom(group, order, generator, proof.eps11, proof.eps12,
-                           proof.eps21, proof.eps22, phi, A, B, id, ctx);
+  SHA256inNIZKPoWFCom(ch, group, order, generator, proof.eps11, proof.eps12,
+                      proof.eps21, proof.eps22, phi, A, B, id, ctx);
 
   BN_mod_sub(ch1, ch, proof.ch2, order, ctx); // ch1 = ch-ch2
 
@@ -319,6 +329,7 @@ void Bidder::genNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
   BIGNUM *ch = BN_new();
   BIGNUM *ch1 = BN_new();
   BIGNUM *ch2 = BN_new();
+  BIGNUM *chtmp = BN_new();
 
   EC_POINT *eps11 = EC_POINT_new(group);
   EC_POINT *eps12 = EC_POINT_new(group);
@@ -383,10 +394,10 @@ void Bidder::genNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
     EC_POINT_mul(group, tmp, NULL, A, ch1, ctx);        // tmp = A^ch1
     EC_POINT_add(group, eps12, eps12, tmp, ctx); // eps12 = g^rho12 * A^ch1
 
-    // eps13 = R^rho11 * B^ch1
-    EC_POINT_mul(group, eps13, NULL, R, rho11, ctx); // eps13 = R^rho11
+    // eps13 = Y^rho11 * B^ch1 // TODO: check
+    EC_POINT_mul(group, eps13, NULL, Y, rho11, ctx); // eps13 = Y^rho11
     EC_POINT_mul(group, tmp, NULL, b, ch1, ctx);     // tmp = b^ch1
-    EC_POINT_add(group, eps13, eps13, tmp, ctx);     // eps13 = R^rho11 * b^ch1
+    EC_POINT_add(group, eps13, eps13, tmp, ctx);     // eps13 = Y^rho11 * b^ch1
 
     // eps14 = B^rho12 * c^ch1
     EC_POINT_mul(group, eps14, NULL, B, rho12, ctx); // eps14 = B^rho12
@@ -397,31 +408,28 @@ void Bidder::genNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
 
     EC_POINT_mul(group, eps22, r12, NULL, NULL, ctx); // eps22 = g^r12
 
-    EC_POINT_mul(group, eps23, NULL, Y, r11, ctx); // eps23 = Y^r11
+    EC_POINT_mul(group, eps23, NULL, R, r11,
+                 ctx); // eps23 = R^r11 // TODO: check
 
     EC_POINT_mul(group, eps24, NULL, B, r12, ctx); // eps24 = B^r12
   }
 
-  ch = SHA256inNIZKPoWFStage1(group, order, generator, eps11, eps12, eps13,
-                              eps14, eps21, eps22, eps23, eps24, b, X, Y, R, c,
-                              A, B, id_, ctx);
+  SHA256inNIZKPoWFStage1(ch, group, order, generator, eps11, eps12, eps13,
+                         eps14, eps21, eps22, eps23, eps24, b, X, Y, R, c, A, B,
+                         id_, ctx);
 
   if (bit == 0) {
-    BN_mod_sub(ch1, ch, ch2, order, ctx);    // ch1 = ch-ch2
-    BN_mod_mul(ch1, ch1, x, order, ctx);     // ch1 = x*(ch-ch2)
-    BN_mod_sub(rho11, r11, ch1, order, ctx); // rho11 = r11-x*(ch-ch2)
-
-    BN_mod_sub(ch1, ch, ch2, order, ctx);    // reset ch1 = ch-ch2
-    BN_mod_mul(ch1, ch1, alpha, order, ctx); // ch1 = alpha*(ch-ch2)
-    BN_mod_sub(rho12, r12, ch1, order, ctx); // rho12 = r12-alpha*(ch-ch2)
-  } else {
-    BN_mod_sub(ch2, ch, ch1, order, ctx);    // ch2 = ch-ch1
-    BN_mod_mul(ch2, ch2, x, order, ctx);     // ch2 = x*(ch-ch1)
-    BN_mod_sub(rho21, r11, ch2, order, ctx); // rho21 = r11-x*(ch-ch1)
-
-    BN_mod_sub(ch2, ch, ch1, order, ctx);    // reset ch2 = ch-ch1
-    BN_mod_mul(ch2, ch2, alpha, order, ctx); // ch2 = alpha*(ch-ch1)
-    BN_mod_sub(rho22, r12, ch2, order, ctx); // rho22 = r12-alpha*(ch-ch1)
+    BN_mod_sub(ch1, ch, ch2, order, ctx);      // ch1 = ch-ch2
+    BN_mod_mul(chtmp, ch1, x, order, ctx);     // chtmp = x*(ch-ch2)
+    BN_mod_sub(rho11, r11, chtmp, order, ctx); // rho11 = r11-x*(ch-ch2)
+    BN_mod_mul(chtmp, ch1, alpha, order, ctx); // ch1 = alpha*(ch-ch2)
+    BN_mod_sub(rho12, r12, chtmp, order, ctx); // rho12 = r12-alpha*(ch-ch2)
+  } else {                                     // bit == 1
+    BN_mod_sub(ch2, ch, ch1, order, ctx);      // ch2 = ch-ch1
+    BN_mod_mul(chtmp, ch2, x, order, ctx);     // chtmp = x*(ch-ch1)
+    BN_mod_sub(rho21, r11, chtmp, order, ctx); // rho21 = r11-x*(ch-ch1)
+    BN_mod_mul(chtmp, ch2, alpha, order, ctx); // chtmp = alpha*(ch-ch1)
+    BN_mod_sub(rho22, r12, chtmp, order, ctx); // rho22 = r12-alpha*(ch-ch1)
   }
 
   proof.eps11 = eps11;
@@ -437,6 +445,15 @@ void Bidder::genNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
   proof.rho21 = rho21;
   proof.rho22 = rho22;
   proof.ch2 = ch2;
+
+  // PRINT_DEBUG("Y = " << EC_POINT_point2hex(group, Y,
+  // POINT_CONVERSION_COMPRESSED, ctx)
+  //                      << ", rho11 = " << BN_bn2hex(proof.rho11)
+  //                      << ", b = " << EC_POINT_point2hex(group, b,
+  //                      POINT_CONVERSION_COMPRESSED, ctx)
+  //                      << ", ch1 = " << BN_bn2hex(ch1)
+  //                      << ", eps13 = " << EC_POINT_point2hex(group,
+  //                      proof.eps13, POINT_CONVERSION_COMPRESSED, ctx));
 }
 
 /**
@@ -467,10 +484,10 @@ bool Bidder::verNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
   EC_POINT *tmp1 = EC_POINT_new(group);
   EC_POINT *tmp2 = EC_POINT_new(group);
 
-  ch = SHA256inNIZKPoWFStage1(group, order, generator, proof.eps11, proof.eps12,
-                              proof.eps13, proof.eps14, proof.eps21,
-                              proof.eps22, proof.eps23, proof.eps24, b, X, Y, R,
-                              c, A, B, id, ctx);
+  SHA256inNIZKPoWFStage1(ch, group, order, generator, proof.eps11, proof.eps12,
+                         proof.eps13, proof.eps14, proof.eps21, proof.eps22,
+                         proof.eps23, proof.eps24, b, X, Y, R, c, A, B, id,
+                         ctx);
   BN_mod_sub(ch1, ch, proof.ch2, order, ctx); // ch1 = ch-ch2
 
   // check 1: g^rho11 * X^ch1 == eps11
@@ -589,7 +606,8 @@ void Bidder::genNIZKPoWFStage2(
     const EC_POINT *Rj, const EC_POINT *Ci, const EC_POINT *A,
     const EC_POINT *B, const EC_POINT *Yi, const EC_POINT *Yj, const BIGNUM *xi,
     const BIGNUM *xj, const BIGNUM *alphai, int bi, int bj, BN_CTX *ctx) {
-  assert((bi == 0 || bi == 1) && (bj == 0 || bj == 1));
+  assert((bi == 0 || bi == 1) && (bj == 0 || bj == 1) &&
+         (!(bi == 1 && bj == 0))); // bj == 0 => bi == 0
 
   BIGNUM *r11 = BN_new(); // or r21, r31, no matter
   BIGNUM *r12 = BN_new(); // or r22, r32, no matter
@@ -742,11 +760,6 @@ void Bidder::genNIZKPoWFStage2(
       BN_rand_range(ch1, order);
       BN_rand_range(ch2, order);
 
-      EC_POINT_mul(group, eps31, r11, NULL, NULL, ctx);    // eps31 = g^r11
-      EC_POINT_mul(group, eps32, r12, NULL, NULL, ctx);    // eps32 = g^r12
-      EC_POINT_mul(group, eps31prime, NULL, Yi, r11, ctx); // eps31' = Yi^r11
-      EC_POINT_mul(group, eps32prime, NULL, Yj, r12, ctx); // eps32' = Yj^r12
-
       // eps11 = g^rho11 * Xi^ch1
       EC_POINT_mul(group, eps11, rho11, NULL, NULL, ctx); // eps11 = g^rho11
       EC_POINT_mul(group, tmp, NULL, Xi, ch1, ctx);       // tmp = Xi^ch1
@@ -799,16 +812,21 @@ void Bidder::genNIZKPoWFStage2(
       EC_POINT_mul(group, eps23prime, NULL, B, rho23, ctx);
       EC_POINT_mul(group, tmp, NULL, Ci, ch2, ctx);
       EC_POINT_add(group, eps23prime, eps23prime, tmp, ctx);
+
+      EC_POINT_mul(group, eps31, r11, NULL, NULL, ctx);    // eps31 = g^r11
+      EC_POINT_mul(group, eps32, r12, NULL, NULL, ctx);    // eps32 = g^r12
+      EC_POINT_mul(group, eps31prime, NULL, Yi, r11, ctx); // eps31' = Yi^r11
+      EC_POINT_mul(group, eps32prime, NULL, Yj, r12, ctx); // eps32' = Yj^r12
     }
   }
 
-  ch = SHA256inNIZKPoWFStage2(group, order, generator, eps11, eps12, eps13,
-                              eps11prime, eps12prime, eps13prime, eps21, eps22,
-                              eps23, eps21prime, eps22prime, eps23prime, eps31,
-                              eps32, eps31prime, eps32prime, Xi, Xj, A, Bi, Bj,
-                              B, Ri, Rj, Ci, Yi, Yj, id_, ctx);
+  SHA256inNIZKPoWFStage2(ch, group, order, generator, eps11, eps12, eps13,
+                         eps11prime, eps12prime, eps13prime, eps21, eps22,
+                         eps23, eps21prime, eps22prime, eps23prime, eps31,
+                         eps32, eps31prime, eps32prime, Xi, Xj, A, Bi, Bj, B,
+                         Ri, Rj, Ci, Yi, Yj, id_, ctx);
 
-  if (bi == 1) { // => bj == 1
+  if (bi == 1) { // (bi = pi & bj) => (bj == 1)
     // ch1 = ch-ch2-ch3
     BN_mod_sub(ch1, ch, ch2, order, ctx);  // ch1 = ch-ch2
     BN_mod_sub(ch1, ch1, ch3, order, ctx); // ch1 = ch-ch2-ch3
@@ -835,7 +853,7 @@ void Bidder::genNIZKPoWFStage2(
       // rho23 = r13-alphai*ch2
       BN_mod_mul(chtmp, alphai, ch2, order, ctx); // chtmp = alphai*ch2
       BN_mod_sub(rho23, r13, chtmp, order, ctx);  // rho23 = r13-alphai*ch2
-    } else {                                      // bj == 0
+    } else {                                      // (bj == 0) => (bi == 0)
       // ch3 = ch-ch1-ch2
       BN_mod_sub(ch3, ch, ch1, order, ctx);  // ch3 = ch-ch1
       BN_mod_sub(ch3, ch3, ch2, order, ctx); // ch3 = ch-ch1-ch2
@@ -874,6 +892,19 @@ void Bidder::genNIZKPoWFStage2(
   proof.rho32 = rho32;
   proof.ch2 = ch2;
   proof.ch3 = ch3;
+
+  // FIXME: when bi = bj = 1, check 4, 6 not correct
+  // check 4: Ri^rho11 * Bi^ch1 == eps11prime
+  EC_POINT *tmp1 = EC_POINT_new(group);
+  EC_POINT *tmp2 = EC_POINT_new(group);
+
+  EC_POINT_mul(group, tmp1, NULL, Ri, proof.rho11, ctx); // tmp1 = Ri^rho11
+  EC_POINT_mul(group, tmp2, NULL, Bi, ch1, ctx);         // tmp2 = Bi^ch1
+  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = Ri^rho11 * Bi^ch1
+  if (EC_POINT_cmp(group, tmp2, proof.eps11prime, ctx) != 0) {
+    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
+                << id_ << ": check 4, bi = " << bi << ", bj = " << bj);
+  }
 }
 
 /**
@@ -907,13 +938,13 @@ bool Bidder::verNIZKPoWFStage2(NIZKPoWFStage2 &proof, const EC_POINT *Bi,
   bool ret = true;
   BIGNUM *ch = BN_new();
   BIGNUM *ch1 = BN_new();
-  BIGNUM *ch2 = BN_new();
-  BIGNUM *ch3 = BN_new();
+  BIGNUM *ch2 = proof.ch2;
+  BIGNUM *ch3 = proof.ch3;
   EC_POINT *tmp1 = EC_POINT_new(group);
   EC_POINT *tmp2 = EC_POINT_new(group);
 
-  ch = SHA256inNIZKPoWFStage2(
-      group, order, generator, proof.eps11, proof.eps12, proof.eps13,
+  SHA256inNIZKPoWFStage2(
+      ch, group, order, generator, proof.eps11, proof.eps12, proof.eps13,
       proof.eps11prime, proof.eps12prime, proof.eps13prime, proof.eps21,
       proof.eps22, proof.eps23, proof.eps21prime, proof.eps22prime,
       proof.eps23prime, proof.eps31, proof.eps32, proof.eps31prime,
@@ -1240,13 +1271,15 @@ bool Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs) {
 RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
   RoundTwoPub pub;
   BN_CTX *ctx = BN_CTX_new();
-  EC_POINT *b = EC_POINT_new(group); // encoded bit
+  EC_POINT *b =
+      EC_POINT_new(group); // encoded bit, may not equal to current bid bit
   EC_POINT *firstHalfSum = EC_POINT_new(group);
   EC_POINT *secondHalfSum = EC_POINT_new(group);
 
   int bit = binaryBidStr[step] - '0';
 
   // calaulate Y for each bidder
+  assert(pubs.size() == n_);
   for (size_t id = 0; id < n_; ++id) {
     EC_POINT_set_to_infinity(group, firstHalfSum);
     for (size_t i = 0; i < id; ++i) {
@@ -1266,10 +1299,12 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
       (junctionFlag && (bit == 0 || prevDecidingBit == 0))) {
     // PRINT_MESSAGE("Bidder " << id_ << " encodes bit 0 in step " << step)
     EC_POINT_mul(group, b, NULL, curInfo[id_].Y, keys[step].x, ctx);
+    bit = 0;
   } else { // (!junctionFlag && bit == 1) || (junctionFlag && bit == 1 &&
            // prevDecidingBit == 1))
     // PRINT_MESSAGE("Bidder " << id_ << " encodes bit 1 in step " << step)
     EC_POINT_mul(group, b, NULL, keys[step].R, keys[step].x, ctx);
+    bit = 1;
   }
 
   pub.b = b;
@@ -1359,10 +1394,10 @@ size_t Bidder::roundThree(const std::vector<RoundTwoPub> pubs, size_t step) {
 
     // prevDecidingInfo = curInfo
     for (size_t i = 0; i < n_; ++i) {
-      prevDecidingInfo[i].X = curInfo[i].X;
-      prevDecidingInfo[i].R = curInfo[i].R;
-      prevDecidingInfo[i].Y = curInfo[i].Y;
-      prevDecidingInfo[i].b = curInfo[i].b;
+      EC_POINT_copy(prevDecidingInfo[i].X, curInfo[i].X);
+      EC_POINT_copy(prevDecidingInfo[i].R, curInfo[i].R);
+      EC_POINT_copy(prevDecidingInfo[i].Y, curInfo[i].Y);
+      EC_POINT_copy(prevDecidingInfo[i].b, curInfo[i].b);
     }
 
     return 1;
