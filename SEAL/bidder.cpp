@@ -664,7 +664,7 @@ void Bidder::genNIZKPoWFStage2(
     EC_POINT_mul(group, eps13, r13, NULL, NULL, ctx);    // eps13 = g^r13
     EC_POINT_mul(group, eps11prime, NULL, Ri, r11, ctx); // eps11' = Ri^r11
     EC_POINT_mul(group, eps12prime, NULL, Rj, r12, ctx); // eps12' = Rj^r12
-    EC_POINT_mul(group, eps11prime, NULL, B, r13, ctx);  // eps13' = B^r13
+    EC_POINT_mul(group, eps13prime, NULL, B, r13, ctx);  // eps13' = B^r13
 
     EC_POINT_mul(group, eps21, rho21, Xi, ch2, ctx); // eps21 = g^rho21 * Xi^ch2
     EC_POINT_mul(group, eps22, rho22, Xj, ch2, ctx); // eps22 = g^rho22 * Xj^ch2
@@ -892,19 +892,6 @@ void Bidder::genNIZKPoWFStage2(
   proof.rho32 = rho32;
   proof.ch2 = ch2;
   proof.ch3 = ch3;
-
-  // FIXME: when bi = bj = 1, check 4, 6 not correct
-  // check 4: Ri^rho11 * Bi^ch1 == eps11prime
-  EC_POINT *tmp1 = EC_POINT_new(group);
-  EC_POINT *tmp2 = EC_POINT_new(group);
-
-  EC_POINT_mul(group, tmp1, NULL, Ri, proof.rho11, ctx); // tmp1 = Ri^rho11
-  EC_POINT_mul(group, tmp2, NULL, Bi, ch1, ctx);         // tmp2 = Bi^ch1
-  EC_POINT_add(group, tmp2, tmp1, tmp2, ctx); // tmp2 = Ri^rho11 * Bi^ch1
-  if (EC_POINT_cmp(group, tmp2, proof.eps11prime, ctx) != 0) {
-    PRINT_ERROR("NIZKPoWFStage2 verification failed for bidder "
-                << id_ << ": check 4, bi = " << bi << ", bj = " << bj);
-  }
 }
 
 /**
