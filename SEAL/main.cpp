@@ -33,7 +33,6 @@ int main(int argc, char *argv[]) {
                 << maxBid << ", Max bid (in binary): "
                 << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
 
-  // TODO: use communication channel to send bids to auctioneer
   // Commit phase
   for (size_t j = 0; j < n; ++j) {
     commitments.push_back(bidders[j].commitBid());
@@ -92,7 +91,7 @@ int main(int argc, char *argv[]) {
     PRINT_MESSAGE("Finished step " << i << ".");
   }
 
-  // test
+  // test correctness
   for (size_t i = 0; i < n; ++i) {
     if (bidders[i].getMaxBid() != maxBid) {
       PRINT_ERROR("Bidder " << i << " failed to calculate max bid.");

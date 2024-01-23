@@ -42,7 +42,6 @@ public:
   bool verifyRoundTwo(std::vector<RoundTwoPub>, size_t);
 
 private:
-  // FIXME: attention to memory leak, use smart pointer
   struct Commitment {
     EC_POINT *phi;
     EC_POINT *A;

@@ -445,15 +445,6 @@ void Bidder::genNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
   proof.rho21 = rho21;
   proof.rho22 = rho22;
   proof.ch2 = ch2;
-
-  // PRINT_DEBUG("Y = " << EC_POINT_point2hex(group, Y,
-  // POINT_CONVERSION_COMPRESSED, ctx)
-  //                      << ", rho11 = " << BN_bn2hex(proof.rho11)
-  //                      << ", b = " << EC_POINT_point2hex(group, b,
-  //                      POINT_CONVERSION_COMPRESSED, ctx)
-  //                      << ", ch1 = " << BN_bn2hex(ch1)
-  //                      << ", eps13 = " << EC_POINT_point2hex(group,
-  //                      proof.eps13, POINT_CONVERSION_COMPRESSED, ctx));
 }
 
 /**
