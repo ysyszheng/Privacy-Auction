@@ -16,6 +16,7 @@ add_executable(${PROJECT_NAME}
     main.cpp
     utils.cpp
     bidder.cpp
+    bulletinBoard.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -26,20 +27,3 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_11)
-
-# add_executable(SEAL_TEST
-#     test.cpp
-#     bidder.cpp
-# )
-
-# target_link_libraries(SEAL_TEST
-#     PRIVATE
-#     cryptopp::cryptopp
-#     OpenSSL::SSL
-#     OpenSSL::Crypto
-# )
-
-# target_compile_features(SEAL_TEST PRIVATE cxx_std_11)
-
-# enable_testing()
-# add_test(NAME TEST COMMAND TEST)

@@ -1,10 +1,9 @@
+#ifndef TYPES_H
+#define TYPES_H
+
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <vector>
-
-typedef struct {
-  // FIXME: not pass pointer, pass by value
-} ENCODED_BID;
 
 /**
  * @brief Non-interactive zero-knowledge proof of knowledge of discrete
@@ -143,3 +142,5 @@ typedef struct {
     NIZKPoWFStage2 powfstage2;
   } powf;
 } RoundTwoPub;
+
+#endif // TYPES_H

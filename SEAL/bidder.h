@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <iomanip>
 #include <iostream>
+#include <memory.h>
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/err.h>
@@ -22,7 +23,6 @@
 #include <random>
 #include <string>
 #include <vector>
-#include <memory.h>
 
 class Bidder {
 public:
@@ -34,12 +34,12 @@ public:
 
   CommitmentPub commitBid();
   RoundOnePub roundOne(size_t);
-  RoundTwoPub roundTwo(const std::vector<RoundOnePub>, size_t);
-  size_t roundThree(const std::vector<RoundTwoPub>, size_t);
+  RoundTwoPub roundTwo(const std::vector<RoundOnePub> &, size_t);
+  size_t roundThree(const std::vector<RoundTwoPub> &, size_t);
 
-  bool verifyCommitment(std::vector<CommitmentPub>);
-  bool verifyRoundOne(std::vector<RoundOnePub>);
-  bool verifyRoundTwo(std::vector<RoundTwoPub>, size_t);
+  bool verifyCommitment(const std::vector<CommitmentPub> &);
+  bool verifyRoundOne(const std::vector<RoundOnePub> &);
+  bool verifyRoundTwo(const std::vector<RoundTwoPub> &, size_t);
 
 private:
   struct Commitment {
@@ -101,13 +101,13 @@ private:
                          int, BN_CTX *);
 
   // verify non-interactive zero-knowledge proof (as verifier)
-  bool verNIZKPoKDLog(NIZKPoKDLog &, const EC_POINT *, size_t, BN_CTX *);
-  bool verNIZKPoWFCom(NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
+  bool verNIZKPoKDLog(const NIZKPoKDLog &, const EC_POINT *, size_t, BN_CTX *);
+  bool verNIZKPoWFCom(const NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
                       const EC_POINT *, size_t, BN_CTX *);
-  bool verNIZKPoWFStage1(NIZKPoWFStage1 &, const EC_POINT *, const EC_POINT *,
+  bool verNIZKPoWFStage1(const NIZKPoWFStage1 &, const EC_POINT *, const EC_POINT *,
                          const EC_POINT *, const EC_POINT *, const EC_POINT *,
                          const EC_POINT *, const EC_POINT *, size_t, BN_CTX *);
-  bool verNIZKPoWFStage2(NIZKPoWFStage2 &, const EC_POINT *Bi,
+  bool verNIZKPoWFStage2(const NIZKPoWFStage2 &, const EC_POINT *Bi,
                          const EC_POINT *Xi, const EC_POINT *Ri,
                          const EC_POINT *Bj, const EC_POINT *Xj,
                          const EC_POINT *Rj, const EC_POINT *Ci,
@@ -116,4 +116,4 @@ private:
                          BN_CTX *);
 };
 
-#endif /* BIDDER_H */
+#endif // BIDDER_H

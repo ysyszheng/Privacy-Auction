@@ -14,9 +14,10 @@ using namespace std;
  * @brief Construct a new Bidder object, with a c-bit random bid
  *
  * @param id ID of bidder, should start from 0
+ * @param n Number of bidders
  * @param c Number of bits in bid
  */
-Bidder::Bidder(size_t id, size_t c, size_t n)
+Bidder::Bidder(size_t id, size_t n, size_t c)
     : id_(id), c_(c), n_(n), maxBid(0), junctionFlag(false), prevDecidingBit(1),
       commitments(c), keys(c) {
   assert(c <= C_MAX);
@@ -113,7 +114,7 @@ void Bidder::genNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
  * @return true, if proof is valid
  * @return false, otherwise
  */
-bool Bidder::verNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
+bool Bidder::verNIZKPoKDLog(const NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
                             BN_CTX *ctx) {
   BIGNUM *h = BN_new(); // hash(g, g^v, g^x, id_), ch in paper
   EC_POINT *g_to_rho = EC_POINT_new(group);
@@ -235,7 +236,7 @@ void Bidder::genNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
  * @return true
  * @return false
  */
-bool Bidder::verNIZKPoWFCom(NIZKPoWFCom &proof, const EC_POINT *phi,
+bool Bidder::verNIZKPoWFCom(const NIZKPoWFCom &proof, const EC_POINT *phi,
                             const EC_POINT *A, const EC_POINT *B, size_t id,
                             BN_CTX *ctx) {
   bool ret = true;
@@ -464,7 +465,7 @@ void Bidder::genNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
  * @return true
  * @return false
  */
-bool Bidder::verNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
+bool Bidder::verNIZKPoWFStage1(const NIZKPoWFStage1 &proof, const EC_POINT *b,
                                const EC_POINT *X, const EC_POINT *Y,
                                const EC_POINT *R, const EC_POINT *c,
                                const EC_POINT *A, const EC_POINT *B, size_t id,
@@ -569,7 +570,8 @@ bool Bidder::verNIZKPoWFStage1(NIZKPoWFStage1 &proof, const EC_POINT *b,
 
 /**
  * @brief Generate a Non-interactive zero-knowledge proof of well-formedness
- * of stage 1
+ * of stage 2. Attention: the naming of some parameters may be *different* from
+ * that in Stage1, especially uppercase B and lowercase b.
  *
  * @param proof result NIZKPoWFStage2
  * @param Bi encoded bit in current step
@@ -906,7 +908,7 @@ void Bidder::genNIZKPoWFStage2(
  * @return true
  * @return false
  */
-bool Bidder::verNIZKPoWFStage2(NIZKPoWFStage2 &proof, const EC_POINT *Bi,
+bool Bidder::verNIZKPoWFStage2(const NIZKPoWFStage2 &proof, const EC_POINT *Bi,
                                const EC_POINT *Xi, const EC_POINT *Ri,
                                const EC_POINT *Bj, const EC_POINT *Xj,
                                const EC_POINT *Rj, const EC_POINT *Ci,
@@ -1160,7 +1162,7 @@ CommitmentPub Bidder::commitBid() {
  * @return bool, true if all commitments are valid and NIZK Proofs is valid,
  * false otherwise
  */
-bool Bidder::verifyCommitment(std::vector<CommitmentPub> pubs) {
+bool Bidder::verifyCommitment(const std::vector<CommitmentPub> &pubs) {
   bool ret = true;
   commitmentsBB = pubs;
 
@@ -1225,7 +1227,7 @@ RoundOnePub Bidder::roundOne(size_t step) {
  * @return bool, true if all Round 1 messages are valid and NIZK Proofs is
  * valid, false otherwise
  */
-bool Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs) {
+bool Bidder::verifyRoundOne(const std::vector<RoundOnePub> &pubs) {
   bool ret = true;
   BN_CTX *ctx = BN_CTX_new();
   for (size_t i = 0; i < pubs.size(); ++i) {
@@ -1246,7 +1248,8 @@ bool Bidder::verifyRoundOne(std::vector<RoundOnePub> pubs) {
  * @param step Current step of the auction, starting from 0
  * @return RoundTwoPub
  */
-RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
+RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> &pubs,
+                             size_t step) {
   RoundTwoPub pub;
   BN_CTX *ctx = BN_CTX_new();
   EC_POINT *b =
@@ -1318,7 +1321,7 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> pubs, size_t step) {
  * @return bool, true if all Round 2 messages are valid and NIZK Proofs is
  * valid, false otherwise
  */
-bool Bidder::verifyRoundTwo(std::vector<RoundTwoPub> pubs, size_t step) {
+bool Bidder::verifyRoundTwo(const std::vector<RoundTwoPub> &pubs, size_t step) {
   bool ret = true;
   BN_CTX *ctx = BN_CTX_new();
 
@@ -1354,7 +1357,7 @@ bool Bidder::verifyRoundTwo(std::vector<RoundTwoPub> pubs, size_t step) {
  * @param step Current step of the auction, starting from 0
  * @return size_t, 1 if winning bidder encodes bit 1 in this step, 0 otherwise
  */
-size_t Bidder::roundThree(const std::vector<RoundTwoPub> pubs, size_t step) {
+size_t Bidder::roundThree(const std::vector<RoundTwoPub> &pubs, size_t step) {
   BN_CTX *ctx = BN_CTX_new();
   EC_POINT *sum = EC_POINT_new(group);
 
