@@ -127,14 +127,14 @@ typedef struct {
 
 typedef std::vector<AuxilaryInfoPerBidder> AuxilaryInfo;
 
-typedef enum { STAGE1, STAGE2 } stagetpye_t;
+typedef enum { STAGE1, STAGE2 } stagetype_t;
 
 typedef struct {
   // Encoded bids
   EC_POINT *b;
 
   // Showing well-formedness of cryptograms
-  stagetpye_t stage; // STAGE1 or STAGE2
+  stagetype_t stage; // STAGE1 or STAGE2
   union {
     // shwoin well-formedness of cryptograms in Stage 1 (before junction)
     NIZKPoWFStage1 powfstage1;

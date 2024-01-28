@@ -1,6 +1,6 @@
 #include "bidder.h"
 #include "params.h"
-#include "utils.h"
+#include "hash.h"
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -31,7 +31,7 @@ Bidder::Bidder(size_t id, size_t n, size_t c)
   PRINT_MESSAGE("Construct Bidder: " << id_ << "\nBid: " << bid_
                                      << ", Bid (in binary): " << binaryBidStr);
 
-  if (NULL == (group = EC_GROUP_new_by_curve_name(NID_SECP256K1))) {
+  if (NULL == (group = EC_GROUP_new_by_curve_name(CURVE))) {
     ERR_print_errors_fp(stderr);
   }
   if (NULL == (generator = EC_GROUP_get0_generator(group))) {
@@ -114,8 +114,8 @@ void Bidder::genNIZKPoKDLog(NIZKPoKDLog &proof, const EC_POINT *g_to_x,
  * @return true, if proof is valid
  * @return false, otherwise
  */
-bool Bidder::verNIZKPoKDLog(const NIZKPoKDLog &proof, const EC_POINT *X, size_t id,
-                            BN_CTX *ctx) {
+bool Bidder::verNIZKPoKDLog(const NIZKPoKDLog &proof, const EC_POINT *X,
+                            size_t id, BN_CTX *ctx) {
   BIGNUM *h = BN_new(); // hash(g, g^v, g^x, id_), ch in paper
   EC_POINT *g_to_rho = EC_POINT_new(group);
   EC_POINT *X_to_h = EC_POINT_new(group);

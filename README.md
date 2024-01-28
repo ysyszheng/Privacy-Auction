@@ -19,10 +19,12 @@ Build and Run
 Install vcpkg and thrird-party libraries.
 
 ```bash
+# install vcpkg
 $ git clone https://github.com/microsoft/vcpkg
 $ ./vcpkg/bootstrap-vcpkg.sh
-$ vcpkg install cryptopp
-$ vcpkg install openssl
+# install third-party libraries
+$ ./vcpkg/vcpkg install cryptopp
+$ ./vcpkg/vcpkg install openssl
 ```
 
 Change `set(VCPKG_ROOT "/Users/yusen/opt/vcpkg")` in `CMakeLists.txt` to your vcpkg path.

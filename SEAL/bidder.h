@@ -2,8 +2,8 @@
 #define BIDDER_H
 
 #include "params.h"
+#include "print.h"
 #include "types.h"
-#include "utils.h"
 #include <cassert>
 #include <cryptopp/cryptlib.h>
 #include <cryptopp/integer.h>
@@ -104,9 +104,10 @@ private:
   bool verNIZKPoKDLog(const NIZKPoKDLog &, const EC_POINT *, size_t, BN_CTX *);
   bool verNIZKPoWFCom(const NIZKPoWFCom &, const EC_POINT *, const EC_POINT *,
                       const EC_POINT *, size_t, BN_CTX *);
-  bool verNIZKPoWFStage1(const NIZKPoWFStage1 &, const EC_POINT *, const EC_POINT *,
+  bool verNIZKPoWFStage1(const NIZKPoWFStage1 &, const EC_POINT *,
                          const EC_POINT *, const EC_POINT *, const EC_POINT *,
-                         const EC_POINT *, const EC_POINT *, size_t, BN_CTX *);
+                         const EC_POINT *, const EC_POINT *, const EC_POINT *,
+                         size_t, BN_CTX *);
   bool verNIZKPoWFStage2(const NIZKPoWFStage2 &, const EC_POINT *Bi,
                          const EC_POINT *Xi, const EC_POINT *Ri,
                          const EC_POINT *Bj, const EC_POINT *Xj,

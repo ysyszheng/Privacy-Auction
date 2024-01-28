@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(SEAL)
+project(CCS22)
 message("Project Name: ${PROJECT_NAME}")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -14,7 +14,6 @@ find_package(OpenSSL REQUIRED)
 
 add_executable(${PROJECT_NAME}
     main.cpp
-    hash.cpp
     bidder.cpp
     bulletinBoard.cpp
 )
@@ -28,4 +27,4 @@ target_link_libraries(${PROJECT_NAME}
     OpenSSL::Crypto
 )
 
-target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_11)
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)

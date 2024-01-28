@@ -1,17 +1,14 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef SHA_H
+#define SHA_H
 
 #include <cstddef>
-#include <iomanip>
 #include <iostream>
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
 #include <openssl/sha.h>
-#include <sstream>
-
-std::string uchar2hex(const unsigned char *data, size_t len);
-std::string char2hex(const char *data, size_t len);
+#include "params.h"
+#include "print.h"
 
 void handelSHA256Error(EVP_MD_CTX *);
 
@@ -64,4 +61,4 @@ void SHA256inNIZKPoWFStage2(
     const EC_POINT *Rj, const EC_POINT *Ci, const EC_POINT *Yi,
     const EC_POINT *Yj, size_t id_, BN_CTX *ctx);
 
-#endif // UTILS_H
+#endif // SHA_H
