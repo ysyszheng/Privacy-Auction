@@ -42,20 +42,20 @@ public:
   bool verifyRoundTwo(const std::vector<RoundTwoPub> &, size_t);
 
 private:
-  struct Commitment {
+  typedef struct {
     EC_POINT *phi;
     EC_POINT *A;
     EC_POINT *B;
     BIGNUM *alpha;
     BIGNUM *beta;
-  };
+  } Commitment;
 
-  struct Key {
+  typedef struct {
     EC_POINT *X;
     EC_POINT *R;
     BIGNUM *x;
     BIGNUM *r;
-  };
+  } Key;
 
   size_t id_;
   size_t bid_;

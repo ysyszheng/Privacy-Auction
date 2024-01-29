@@ -3,6 +3,7 @@
 
 #include "params.h"
 #include "print.h"
+#include "types.h"
 #include <iostream>
 #include <memory>
 #include <openssl/bn.h>
@@ -15,15 +16,19 @@ public:
   BulletinBoard(size_t, size_t);
   ~BulletinBoard();
 
+  const PubParams &getPubParams() const;
+
 private:
   size_t n_;
   size_t c_;
 
   // public parameters
-  std::unique_ptr<EC_GROUP, decltype(&EC_GROUP_free)> group_;
-  std::unique_ptr<EC_POINT, decltype(&EC_POINT_free)> g_;
-  std::unique_ptr<EC_POINT, decltype(&EC_POINT_free)> g1_;
-  std::unique_ptr<BIGNUM, decltype(&BN_free)> order_;
+  const EC_GROUP *group_;
+  const BIGNUM *order_;
+  const EC_POINT *g_;
+  const EC_POINT *g1_;
+  const EC_POINT *h_;
+  const PubParams pubParams_;
 };
 
 #endif // BULLETIN_BOARD_H

@@ -1,5 +1,5 @@
-#ifndef SHA_H
-#define SHA_H
+#ifndef HASH_H
+#define HASH_H
 
 #include <cstddef>
 #include <iostream>
@@ -61,4 +61,4 @@ void SHA256inNIZKPoWFStage2(
     const EC_POINT *Rj, const EC_POINT *Ci, const EC_POINT *Yi,
     const EC_POINT *Yj, size_t id_, BN_CTX *ctx);
 
-#endif // SHA_H
+#endif // HASH_H
