@@ -43,12 +43,35 @@ BulletinBoard::BulletinBoard(size_t n, size_t c)
         }
         return h;
       }()),
-      pubParams_({group_, g_, g1_, h_, order_}) {
+      pubParams_({group_, g_, g1_, h_, order_}), commitments_(n) {
   assert(c <= C_MAX);
-}
 
-BulletinBoard::~BulletinBoard() {
-  // nothing to do
+  pubKeys_.resize(n);
+  for (size_t i = 0; i < n; i++) {
+    pubKeys_[i].resize(c);
+  }
 }
 
 const PubParams &BulletinBoard::getPubParams() const { return pubParams_; }
+
+void BulletinBoard::addCommitmentMsg(size_t id, const EC_POINT *com) {
+  assert(id < n_);
+  commitments_[id] = com;
+}
+
+void BulletinBoard::addPublicKeyMsg(size_t id,
+                                    const std::vector<EC_POINT *> &pubKeys) {
+  assert(id < n_);
+  assert(pubKeys.size() == c_);
+  pubKeys_[id] = pubKeys;
+}
+
+const std::vector<EC_POINT *>
+BulletinBoard::getPublicKeysByStep(size_t step) const {
+  assert(step < c_);
+  std::vector<EC_POINT *> pubKeys(n_);
+  for (size_t i = 0; i < n_; i++) {
+    pubKeys[i] = pubKeys_[i][step];
+  }
+  return pubKeys;
+}

@@ -14,9 +14,11 @@
 class BulletinBoard {
 public:
   BulletinBoard(size_t, size_t);
-  ~BulletinBoard();
 
   const PubParams &getPubParams() const;
+  void addCommitmentMsg(size_t, const EC_POINT *);
+  void addPublicKeyMsg(size_t, const std::vector<EC_POINT *> &);
+  const std::vector<EC_POINT *> getPublicKeysByStep(size_t) const;
 
 private:
   size_t n_;
@@ -29,6 +31,9 @@ private:
   const EC_POINT *g1_;
   const EC_POINT *h_;
   const PubParams pubParams_;
+
+  std::vector<const EC_POINT *> commitments_;
+  std::vector<std::vector<EC_POINT *>> pubKeys_;
 };
 
 #endif // BULLETIN_BOARD_H

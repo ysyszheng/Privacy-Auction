@@ -18,3 +18,7 @@
   std::cout << DIVIDER << ANSI_COLOR_YELLOW "[DEBUG] " ANSI_COLOR_RESET        \
             << __FILE__ << ":" << __LINE__ << ": \n"                           \
             << msg << DIVIDER << std::endl
+#define PRINT_INFO(msg)                                                       \
+  std::cout << DIVIDER << ANSI_COLOR_BLUE "[INFO] " ANSI_COLOR_RESET        \
+            << __FILE__ << ":" << __LINE__ << ": \n"                           \
+            << msg << DIVIDER << std::endl

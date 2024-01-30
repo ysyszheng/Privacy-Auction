@@ -15,6 +15,8 @@ int main(int argc, char *argv[]) {
 
   size_t n = std::stoul(argv[1]);
   size_t c = std::stoul(argv[2]);
+  bool flag = true;
+
   std::vector<size_t> bids;
   std::vector<Bidder> bidders;
   BulletinBoard bb(n, c);
@@ -97,17 +99,19 @@ int main(int argc, char *argv[]) {
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
       end_time - start_time);
   double seconds = duration.count() / 1e6;
-  PRINT_MESSAGE("Time: " << seconds << "s.");
+  PRINT_INFO("Time: " << seconds << "s.");
 
   // test correctness
   for (size_t i = 0; i < n; ++i) {
     if (bidders[i].getMaxBid() != maxBid) {
+      flag = false;
       PRINT_ERROR("Bidder " << i << " failed to calculate max bid.");
     }
   }
-  PRINT_MESSAGE("Finished auction, all bidder calculated max bid.\nMax bid: "
-                << maxBid << ", Max bid (in binary): "
-                << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
-
+  if (flag) {
+    PRINT_MESSAGE("Finished auction, all bidder calculated max bid.\nMax bid: "
+                  << maxBid << ", Max bid (in binary): "
+                  << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
+  }
   return 0;
 }

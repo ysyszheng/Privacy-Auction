@@ -21,21 +21,23 @@ public:
   size_t getBid();
   size_t getMaxBid();
 
-  virtual void setup();
-  EC_POINT *BESEncode(std::vector<EC_POINT *> &, size_t);
-  const OT_S &OTSend(const OT_R1 &);
-  // TODO: set inRaceFlag
+  void setup();
+  const EC_POINT *getCommitments() const;
+  const std::vector<EC_POINT *> &getPubKeys() const;
 
-private:
+  void BESEncode(const std::vector<EC_POINT *> &, size_t);
+  const OT_S *OTSend(size_t, const OT_R1 &);
+  void enterDeciderRound(size_t);
+
+protected:
   typedef struct {
     BIGNUM *x;
     BIGNUM *r;
-    BIGNUM *gamma;
+    BIGNUM *randomness; // gamma in common bidders, beta in evaluator
   } PrivKey;
 
-  std::vector<PrivKey> privKeys;
+  std::vector<PrivKey *> privKeys;
 
-protected:
   size_t id_;
   size_t bid_;
   size_t c_;
