@@ -20,6 +20,7 @@ Install vcpkg and thrird-party libraries.
 
 ```bash
 # install vcpkg
+$ cd <YOUR_FAVORITE_DIR> # i.e. cd ~/opt
 $ git clone https://github.com/microsoft/vcpkg
 $ ./vcpkg/bootstrap-vcpkg.sh
 # install third-party libraries
@@ -38,6 +39,15 @@ $ cmake ..
 $ cmake --build .
 # run
 $ ./<APP_NAME> <PARAMS> # i.e. ./SEAL 10 20 when <APP_NAME> is SEAL and <PARAMS> are 10 and 20
+```
+
+Test
+-----
+
+```bash
+# After build, in build directory
+$ python3 ../tests/genTests.py --tests=100 --bidders_max=50 --bitslen_max=32 # install argparse if needed
+$ ctest -V # -V for verbose
 ```
 
 References

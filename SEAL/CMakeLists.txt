@@ -29,3 +29,10 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_11)
+
+# Testing
+include(CTest)
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

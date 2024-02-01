@@ -107,10 +107,8 @@ void Bidder::BESEncode(const std::vector<EC_POINT *> &BBpubKeys, size_t step) {
   EC_POINT_add(group, Y, firstHalfSum, secondHalfSum, ctx);
 
   if (d == 0) {
-    // PRINT_MESSAGE("Bidder " << id_ << " encodes bit 0 in step " << step);
     EC_POINT_mul(group, B, NULL, Y, privKeys[step]->x, ctx);
   } else { // d == 1
-    // PRINT_MESSAGE("Bidder " << id_ << " encodes bit 1 in step " << step);
     EC_POINT_mul(group, B, privKeys[step]->r, NULL, NULL, ctx);
   }
 }
@@ -161,6 +159,6 @@ const OT_S *Bidder::OTSend(size_t step, const OT_R1 &otr1) {
 }
 
 void Bidder::enterDeciderRound(size_t step) {
-  inRaceFlag = false ? d == 0 : inRaceFlag;
+  inRaceFlag = d == 0 ? false : inRaceFlag;
   maxBid |= (1 << (c_ - step - 1));
 }

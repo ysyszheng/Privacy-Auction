@@ -1278,12 +1278,10 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> &pubs,
 
   if ((!junctionFlag && bit == 0) ||
       (junctionFlag && (bit == 0 || prevDecidingBit == 0))) {
-    // PRINT_MESSAGE("Bidder " << id_ << " encodes bit 0 in step " << step)
     EC_POINT_mul(group, b, NULL, curInfo[id_].Y, keys[step].x, ctx);
     bit = 0;
   } else { // (!junctionFlag && bit == 1) || (junctionFlag && bit == 1 &&
            // prevDecidingBit == 1))
-    // PRINT_MESSAGE("Bidder " << id_ << " encodes bit 1 in step " << step)
     EC_POINT_mul(group, b, NULL, keys[step].R, keys[step].x, ctx);
     bit = 1;
   }

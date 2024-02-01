@@ -3,6 +3,7 @@
 .cache/
 build/
 misc/
+params.txt
 
 # Prerequisites
 *.d

@@ -29,9 +29,9 @@ int main(int argc, char *argv[]) {
 
   // Initialization Phase
   const PubParams &pubParams = bb.getPubParams();
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<size_t> dist(0, n - 1);
+  random_device rd;
+  mt19937 gen(rd());
+  uniform_int_distribution<size_t> dist(0, n - 1);
   evaluatorId = dist(gen);
 
   auto pos = [evaluatorId](size_t i) {
@@ -142,6 +142,7 @@ int main(int argc, char *argv[]) {
     PRINT_MESSAGE("Finished auction, all bidder calculated max bid.\nMax bid: "
                   << maxBid << ", Max bid (in binary): "
                   << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
+    return 0;
   }
-  return 0;
+  return 1;
 }
