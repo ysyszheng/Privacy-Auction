@@ -8,15 +8,15 @@ Dependencies
 
 | Name | Version |
 | --- | --- |
-| [cmake](https://cmake.org/) | >= 3.14 |
+| [CMake](https://cmake.org/) | >= 3.14 |
 | [vcpkg](https://github.com/microsoft/vcpkg) | latest |
 | [OpenSSL](https://www.openssl.org/) | 3.2.0 |
-| [Crypto++](https://www.cryptopp.com/) | 8.9.0 |
+| [Python](https://www.python.org/) | 3.8.16 |
 
 Build and Run
 -----
 
-Install vcpkg and thrird-party libraries.
+Install vcpkg and thrird-party libraries. Change `set(VCPKG_ROOT "/Users/yusen/opt/vcpkg")` in `CMakeLists.txt` to your vcpkg path.
 
 ```bash
 # install vcpkg
@@ -28,7 +28,7 @@ $ ./vcpkg/vcpkg install cryptopp
 $ ./vcpkg/vcpkg install openssl
 ```
 
-Change `set(VCPKG_ROOT "/Users/yusen/opt/vcpkg")` in `CMakeLists.txt` to your vcpkg path.
+Clone the repository and cd to project root directory.
 
 ```bash
 # build
@@ -44,9 +44,11 @@ $ ./<APP_NAME> <PARAMS> # i.e. ./SEAL 10 20 when <APP_NAME> is SEAL and <PARAMS>
 Test
 -----
 
+After build, in build directory.
+
 ```bash
-# After build, in build directory
-$ python3 ../tests/genTests.py --tests=100 --bidders_max=50 --bitslen_max=32 # install argparse if needed
+# unit test
+$ python3 ../tests/genTests.py --tests=<#TESTS> --bidders_max=<MAX #BIDDERS> --bitslen_max=<MAX LEN(BIDS IN BINARY)> # i.e. --tests=100 --bidders_max=20 --bitslen_max=32
 $ ctest -V # -V for verbose
 ```
 
