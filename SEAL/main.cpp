@@ -3,6 +3,7 @@
 #include "dataTracker.h"
 #include "params.h"
 #include "print.h"
+#include "timeTracker.h"
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
@@ -37,36 +38,46 @@ int main(int argc, char *argv[]) {
                 << maxBid << ", Max bid (in binary): "
                 << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
 
-  auto start_time = std::chrono::high_resolution_clock::now();
+  TimeTracker bidderTimeTracker;       // Consider the total running time of all
+                                       // bidders and divide it by #bidders
+  TimeTracker verificationTimeTracker; // Only consider the verification time of
+                                       // one verifier
 
   // Commit phase
+  bidderTimeTracker.start();
   for (size_t j = 0; j < n; ++j) {
     bb.addCommitmentMsg(bidders[j].commitBid(), j);
   }
+  bidderTimeTracker.stop();
 
   // PRINT_MESSAGE("Finished commitment.");
 
 #ifdef ENABLE_VERIFICATION
   // Verify commitments
+  verificationTimeTracker.start();
   for (size_t j = 0; j < n; ++j) {
     if (!bidders[j].verifyCommitment(bb.getCommitments())) {
       PRINT_ERROR("Bidder " << j << " failed to verify commitments.");
       exit(1);
     }
   }
+  verificationTimeTracker.stop();
 #endif
 
   // PRINT_MESSAGE("Finished verification of commitments.");
 
   // Auction phase, i is the step, j is the bidder id
   for (size_t i = 0; i < c; ++i) {
+    bidderTimeTracker.start();
     for (size_t j = 0; j < n; ++j) {
       bb.addRoundOneMsg(bidders[j].roundOne(i), j);
     }
+    bidderTimeTracker.stop();
 
     // PRINT_MESSAGE("Finished round one in step " << i << ".");
 
 #ifdef ENABLE_VERIFICATION
+    verificationTimeTracker.start();
     for (size_t j = 0; j < n; ++j) {
       if (!bidders[j].verifyRoundOne(bb.getRoundOnePubs())) {
         PRINT_ERROR("Bidder " << j << " failed to verify round one in step "
@@ -74,17 +85,21 @@ int main(int argc, char *argv[]) {
         exit(1);
       }
     }
+    verificationTimeTracker.stop();
 #endif
 
     // PRINT_MESSAGE("Finished verification of round one in step " << i << ".");
 
+    bidderTimeTracker.start();
     for (size_t j = 0; j < n; ++j) {
       bb.addRoundTwoMsg(bidders[j].roundTwo(bb.getRoundOneXs(), i), j);
     }
+    bidderTimeTracker.stop();
 
     // PRINT_MESSAGE("Finished round two in step " << i << ".");
 
 #ifdef ENABLE_VERIFICATION
+    verificationTimeTracker.start();
     for (size_t j = 0; j < n; ++j) {
       if (!bidders[j].verifyRoundTwo(bb.getRoundTwoPubs(), i)) {
         PRINT_ERROR("Bidder " << j << " failed to verify round two in step "
@@ -92,27 +107,35 @@ int main(int argc, char *argv[]) {
         exit(1);
       }
     }
+    verificationTimeTracker.stop();
 #endif
 
     // PRINT_MESSAGE("Finished verification of round two in step " << i << ".");
 
+    bidderTimeTracker.start();
     for (size_t j = 0; j < n; ++j) {
       bidders[j].roundThree(bb.getRoundTwoBs(), i);
     }
+    bidderTimeTracker.stop();
 
     // PRINT_MESSAGE("Finished step " << i << ".");
   }
 
-  auto end_time = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-      end_time - start_time);
-  double seconds = duration.count() / 1e6;
-
   PRINT_INFO(
-      "Time: "
-      << seconds << " s.\nData: "
-      << (static_cast<double>(DataTracker::getInstance().getTotalDataSize()) /
-          (1024 * 1024))
+      "Time (one bidder): "
+      << bidderTimeTracker.getTotalTimeInSecond() / n << " s." << std::endl
+      << "Time (one verifier): "
+      << verificationTimeTracker.getTotalTimeInSecond() / n << " s."
+      << std::endl
+      << "Data (one bidder): "
+      << static_cast<double>(
+             DataTracker::getInstance().getCategoryDataSize(BIDDER_CATEGORY)) /
+             (1024 * 1024) / n
+      << " MB" << std::endl
+      << "Data (one verifier): "
+      << static_cast<double>(DataTracker::getInstance().getCategoryDataSize(
+             VERIFIER_CATEGORY)) /
+             (1024 * 1024) / n
       << " MB");
 
   // test correctness

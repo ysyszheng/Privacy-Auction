@@ -24,26 +24,26 @@ void BulletinBoard::addCommitmentMsg(const CommitmentPub &commitment,
   commitments_[id] = commitment;
 
 #ifdef ENABLE_COMMUNICATION_TRACKING
-  DataTracker::getInstance().addData(sizeof(id));
+  DataTracker::getInstance().addData(BIDDER_CATEGORY, sizeof(id));
 
   for (auto &c : commitment) {
-    track_ec_point_size(c.phi);
-    track_ec_point_size(c.A);
-    track_ec_point_size(c.B);
+    track_ec_point_size(BIDDER_CATEGORY, c.phi);
+    track_ec_point_size(BIDDER_CATEGORY, c.A);
+    track_ec_point_size(BIDDER_CATEGORY, c.B);
 
-    track_ec_point_size(c.pokdlogA.eps);
-    track_bignum_size(c.pokdlogA.rho);
+    track_ec_point_size(BIDDER_CATEGORY, c.pokdlogA.eps);
+    track_bignum_size(BIDDER_CATEGORY, c.pokdlogA.rho);
 
-    track_ec_point_size(c.pokdlogB.eps);
-    track_bignum_size(c.pokdlogB.rho);
+    track_ec_point_size(BIDDER_CATEGORY, c.pokdlogB.eps);
+    track_bignum_size(BIDDER_CATEGORY, c.pokdlogB.rho);
 
-    track_ec_point_size(c.powfcom.eps11);
-    track_ec_point_size(c.powfcom.eps12);
-    track_ec_point_size(c.powfcom.eps21);
-    track_ec_point_size(c.powfcom.eps22);
-    track_bignum_size(c.powfcom.rho1);
-    track_bignum_size(c.powfcom.rho2);
-    track_bignum_size(c.powfcom.ch2);
+    track_ec_point_size(BIDDER_CATEGORY, c.powfcom.eps11);
+    track_ec_point_size(BIDDER_CATEGORY, c.powfcom.eps12);
+    track_ec_point_size(BIDDER_CATEGORY, c.powfcom.eps21);
+    track_ec_point_size(BIDDER_CATEGORY, c.powfcom.eps22);
+    track_bignum_size(BIDDER_CATEGORY, c.powfcom.rho1);
+    track_bignum_size(BIDDER_CATEGORY, c.powfcom.rho2);
+    track_bignum_size(BIDDER_CATEGORY, c.powfcom.ch2);
   }
 #endif
 }
@@ -52,16 +52,16 @@ void BulletinBoard::addRoundOneMsg(const RoundOnePub &roundOnePub, size_t id) {
   roundOnePubs_[id] = roundOnePub;
 
 #ifdef ENABLE_COMMUNICATION_TRACKING
-  DataTracker::getInstance().addData(sizeof(id));
+  DataTracker::getInstance().addData(BIDDER_CATEGORY, sizeof(id));
 
-  track_ec_point_size(roundOnePub.X);
-  track_ec_point_size(roundOnePub.R);
+  track_ec_point_size(BIDDER_CATEGORY, roundOnePub.X);
+  track_ec_point_size(BIDDER_CATEGORY, roundOnePub.R);
 
-  track_ec_point_size(roundOnePub.pokdlogX.eps);
-  track_bignum_size(roundOnePub.pokdlogX.rho);
+  track_ec_point_size(BIDDER_CATEGORY, roundOnePub.pokdlogX.eps);
+  track_bignum_size(BIDDER_CATEGORY, roundOnePub.pokdlogX.rho);
 
-  track_ec_point_size(roundOnePub.pokdlogR.eps);
-  track_bignum_size(roundOnePub.pokdlogR.rho);
+  track_ec_point_size(BIDDER_CATEGORY, roundOnePub.pokdlogR.eps);
+  track_bignum_size(BIDDER_CATEGORY, roundOnePub.pokdlogR.rho);
 #endif
 }
 
@@ -69,56 +69,65 @@ void BulletinBoard::addRoundTwoMsg(const RoundTwoPub &roundTwoPub, size_t id) {
   roundTwoPubs_[id] = roundTwoPub;
 
 #ifdef ENABLE_COMMUNICATION_TRACKING
-  DataTracker::getInstance().addData(sizeof(id));
-  DataTracker::getInstance().addData(sizeof(roundTwoPub.stage));
+  DataTracker::getInstance().addData(BIDDER_CATEGORY, sizeof(id));
+  DataTracker::getInstance().addData(BIDDER_CATEGORY,
+                                     sizeof(roundTwoPub.stage));
 
-  track_ec_point_size(roundTwoPub.b);
+  track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.b);
 
   if (roundTwoPub.stage == STAGE1) {
-    track_ec_point_size(roundTwoPub.powf.powfstage1.eps11);
-    track_ec_point_size(roundTwoPub.powf.powfstage1.eps12);
-    track_ec_point_size(roundTwoPub.powf.powfstage1.eps13);
-    track_ec_point_size(roundTwoPub.powf.powfstage1.eps14);
-    track_ec_point_size(roundTwoPub.powf.powfstage1.eps21);
-    track_ec_point_size(roundTwoPub.powf.powfstage1.eps22);
-    track_ec_point_size(roundTwoPub.powf.powfstage1.eps23);
-    track_ec_point_size(roundTwoPub.powf.powfstage1.eps24);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.eps11);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.eps12);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.eps13);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.eps14);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.eps21);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.eps22);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.eps23);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.eps24);
 
-    track_bignum_size(roundTwoPub.powf.powfstage1.rho11);
-    track_bignum_size(roundTwoPub.powf.powfstage1.rho12);
-    track_bignum_size(roundTwoPub.powf.powfstage1.rho21);
-    track_bignum_size(roundTwoPub.powf.powfstage1.rho22);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.rho11);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.rho12);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.rho21);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.rho22);
 
-    track_bignum_size(roundTwoPub.powf.powfstage1.ch2);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage1.ch2);
   } else {
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps11);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps12);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps13);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps11prime);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps12prime);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps13prime);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps21);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps22);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps23);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps21prime);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps22prime);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps23prime);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps31);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps32);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps31prime);
-    track_ec_point_size(roundTwoPub.powf.powfstage2.eps32prime);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.eps11);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.eps12);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.eps13);
+    track_ec_point_size(BIDDER_CATEGORY,
+                        roundTwoPub.powf.powfstage2.eps11prime);
+    track_ec_point_size(BIDDER_CATEGORY,
+                        roundTwoPub.powf.powfstage2.eps12prime);
+    track_ec_point_size(BIDDER_CATEGORY,
+                        roundTwoPub.powf.powfstage2.eps13prime);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.eps21);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.eps22);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.eps23);
+    track_ec_point_size(BIDDER_CATEGORY,
+                        roundTwoPub.powf.powfstage2.eps21prime);
+    track_ec_point_size(BIDDER_CATEGORY,
+                        roundTwoPub.powf.powfstage2.eps22prime);
+    track_ec_point_size(BIDDER_CATEGORY,
+                        roundTwoPub.powf.powfstage2.eps23prime);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.eps31);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.eps32);
+    track_ec_point_size(BIDDER_CATEGORY,
+                        roundTwoPub.powf.powfstage2.eps31prime);
+    track_ec_point_size(BIDDER_CATEGORY,
+                        roundTwoPub.powf.powfstage2.eps32prime);
 
-    track_bignum_size(roundTwoPub.powf.powfstage2.rho11);
-    track_bignum_size(roundTwoPub.powf.powfstage2.rho12);
-    track_bignum_size(roundTwoPub.powf.powfstage2.rho13);
-    track_bignum_size(roundTwoPub.powf.powfstage2.rho21);
-    track_bignum_size(roundTwoPub.powf.powfstage2.rho22);
-    track_bignum_size(roundTwoPub.powf.powfstage2.rho23);
-    track_bignum_size(roundTwoPub.powf.powfstage2.rho31);
-    track_bignum_size(roundTwoPub.powf.powfstage2.rho32);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.rho11);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.rho12);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.rho13);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.rho21);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.rho22);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.rho23);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.rho31);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.rho32);
 
-    track_bignum_size(roundTwoPub.powf.powfstage2.ch2);
-    track_bignum_size(roundTwoPub.powf.powfstage2.ch3);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.ch2);
+    track_bignum_size(BIDDER_CATEGORY, roundTwoPub.powf.powfstage2.ch3);
   }
 #endif
 }
@@ -130,7 +139,7 @@ const std::vector<const EC_POINT *> BulletinBoard::getRoundOneXs() const {
   for (auto &roundOnePub : roundOnePubs_) {
     Xs.push_back(roundOnePub.X);
 #ifdef ENABLE_COMMUNICATION_TRACKING
-    track_ec_point_size(roundOnePub.X);
+    track_ec_point_size(BIDDER_CATEGORY, roundOnePub.X);
 #endif
   }
 
@@ -144,7 +153,7 @@ const std::vector<const EC_POINT *> BulletinBoard::getRoundTwoBs() const {
   for (auto &roundTwoPub : roundTwoPubs_) {
     Bs.push_back(roundTwoPub.b);
 #ifdef ENABLE_COMMUNICATION_TRACKING
-    track_ec_point_size(roundTwoPub.b);
+    track_ec_point_size(BIDDER_CATEGORY, roundTwoPub.b);
 #endif
   }
 
@@ -155,23 +164,23 @@ const std::vector<CommitmentPub> &BulletinBoard::getCommitments() const {
 #ifdef ENABLE_COMMUNICATION_TRACKING
   for (auto &commitment : commitments_) {
     for (auto &c : commitment) {
-      track_ec_point_size(c.phi);
-      track_ec_point_size(c.A);
-      track_ec_point_size(c.B);
+      track_ec_point_size(VERIFIER_CATEGORY, c.phi);
+      track_ec_point_size(VERIFIER_CATEGORY, c.A);
+      track_ec_point_size(VERIFIER_CATEGORY, c.B);
 
-      track_ec_point_size(c.pokdlogA.eps);
-      track_bignum_size(c.pokdlogA.rho);
+      track_ec_point_size(VERIFIER_CATEGORY, c.pokdlogA.eps);
+      track_bignum_size(VERIFIER_CATEGORY, c.pokdlogA.rho);
 
-      track_ec_point_size(c.pokdlogB.eps);
-      track_bignum_size(c.pokdlogB.rho);
+      track_ec_point_size(VERIFIER_CATEGORY, c.pokdlogB.eps);
+      track_bignum_size(VERIFIER_CATEGORY, c.pokdlogB.rho);
 
-      track_ec_point_size(c.powfcom.eps11);
-      track_ec_point_size(c.powfcom.eps12);
-      track_ec_point_size(c.powfcom.eps21);
-      track_ec_point_size(c.powfcom.eps22);
-      track_bignum_size(c.powfcom.rho1);
-      track_bignum_size(c.powfcom.rho2);
-      track_bignum_size(c.powfcom.ch2);
+      track_ec_point_size(VERIFIER_CATEGORY, c.powfcom.eps11);
+      track_ec_point_size(VERIFIER_CATEGORY, c.powfcom.eps12);
+      track_ec_point_size(VERIFIER_CATEGORY, c.powfcom.eps21);
+      track_ec_point_size(VERIFIER_CATEGORY, c.powfcom.eps22);
+      track_bignum_size(VERIFIER_CATEGORY, c.powfcom.rho1);
+      track_bignum_size(VERIFIER_CATEGORY, c.powfcom.rho2);
+      track_bignum_size(VERIFIER_CATEGORY, c.powfcom.ch2);
     }
   }
 #endif
@@ -182,14 +191,14 @@ const std::vector<CommitmentPub> &BulletinBoard::getCommitments() const {
 const std::vector<RoundOnePub> &BulletinBoard::getRoundOnePubs() const {
 #ifdef ENABLE_COMMUNICATION_TRACKING
   for (auto &roundOnePub : roundOnePubs_) {
-    track_ec_point_size(roundOnePub.X);
-    track_ec_point_size(roundOnePub.R);
+    track_ec_point_size(VERIFIER_CATEGORY, roundOnePub.X);
+    track_ec_point_size(VERIFIER_CATEGORY, roundOnePub.R);
 
-    track_ec_point_size(roundOnePub.pokdlogX.eps);
-    track_bignum_size(roundOnePub.pokdlogX.rho);
+    track_ec_point_size(VERIFIER_CATEGORY, roundOnePub.pokdlogX.eps);
+    track_bignum_size(VERIFIER_CATEGORY, roundOnePub.pokdlogX.rho);
 
-    track_ec_point_size(roundOnePub.pokdlogR.eps);
-    track_bignum_size(roundOnePub.pokdlogR.rho);
+    track_ec_point_size(VERIFIER_CATEGORY, roundOnePub.pokdlogR.eps);
+    track_bignum_size(VERIFIER_CATEGORY, roundOnePub.pokdlogR.rho);
   }
 #endif
 
@@ -199,53 +208,63 @@ const std::vector<RoundOnePub> &BulletinBoard::getRoundOnePubs() const {
 const std::vector<RoundTwoPub> &BulletinBoard::getRoundTwoPubs() const {
 #ifdef ENABLE_COMMUNICATION_TRACKING
   for (auto &roundTwoPub : roundTwoPubs_) {
-    track_ec_point_size(roundTwoPub.b);
+    track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.b);
+    DataTracker::getInstance().addData(VERIFIER_CATEGORY,
+                                       sizeof(roundTwoPub.stage));
 
     if (roundTwoPub.stage == STAGE1) {
-      track_ec_point_size(roundTwoPub.powf.powfstage1.eps11);
-      track_ec_point_size(roundTwoPub.powf.powfstage1.eps12);
-      track_ec_point_size(roundTwoPub.powf.powfstage1.eps13);
-      track_ec_point_size(roundTwoPub.powf.powfstage1.eps14);
-      track_ec_point_size(roundTwoPub.powf.powfstage1.eps21);
-      track_ec_point_size(roundTwoPub.powf.powfstage1.eps22);
-      track_ec_point_size(roundTwoPub.powf.powfstage1.eps23);
-      track_ec_point_size(roundTwoPub.powf.powfstage1.eps24);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.eps11);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.eps12);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.eps13);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.eps14);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.eps21);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.eps22);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.eps23);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.eps24);
 
-      track_bignum_size(roundTwoPub.powf.powfstage1.rho11);
-      track_bignum_size(roundTwoPub.powf.powfstage1.rho12);
-      track_bignum_size(roundTwoPub.powf.powfstage1.rho21);
-      track_bignum_size(roundTwoPub.powf.powfstage1.rho22);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.rho11);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.rho12);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.rho21);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.rho22);
 
-      track_bignum_size(roundTwoPub.powf.powfstage1.ch2);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage1.ch2);
     } else {
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps11);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps12);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps13);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps11prime);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps12prime);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps13prime);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps21);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps22);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps23);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps21prime);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps22prime);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps23prime);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps31);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps32);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps31prime);
-      track_ec_point_size(roundTwoPub.powf.powfstage2.eps32prime);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.eps11);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.eps12);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.eps13);
+      track_ec_point_size(VERIFIER_CATEGORY,
+                          roundTwoPub.powf.powfstage2.eps11prime);
+      track_ec_point_size(VERIFIER_CATEGORY,
+                          roundTwoPub.powf.powfstage2.eps12prime);
+      track_ec_point_size(VERIFIER_CATEGORY,
+                          roundTwoPub.powf.powfstage2.eps13prime);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.eps21);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.eps22);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.eps23);
+      track_ec_point_size(VERIFIER_CATEGORY,
+                          roundTwoPub.powf.powfstage2.eps21prime);
+      track_ec_point_size(VERIFIER_CATEGORY,
+                          roundTwoPub.powf.powfstage2.eps22prime);
+      track_ec_point_size(VERIFIER_CATEGORY,
+                          roundTwoPub.powf.powfstage2.eps23prime);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.eps31);
+      track_ec_point_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.eps32);
+      track_ec_point_size(VERIFIER_CATEGORY,
+                          roundTwoPub.powf.powfstage2.eps31prime);
+      track_ec_point_size(VERIFIER_CATEGORY,
+                          roundTwoPub.powf.powfstage2.eps32prime);
 
-      track_bignum_size(roundTwoPub.powf.powfstage2.rho11);
-      track_bignum_size(roundTwoPub.powf.powfstage2.rho12);
-      track_bignum_size(roundTwoPub.powf.powfstage2.rho13);
-      track_bignum_size(roundTwoPub.powf.powfstage2.rho21);
-      track_bignum_size(roundTwoPub.powf.powfstage2.rho22);
-      track_bignum_size(roundTwoPub.powf.powfstage2.rho23);
-      track_bignum_size(roundTwoPub.powf.powfstage2.rho31);
-      track_bignum_size(roundTwoPub.powf.powfstage2.rho32);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.rho11);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.rho12);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.rho13);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.rho21);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.rho22);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.rho23);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.rho31);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.rho32);
 
-      track_bignum_size(roundTwoPub.powf.powfstage2.ch2);
-      track_bignum_size(roundTwoPub.powf.powfstage2.ch3);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.ch2);
+      track_bignum_size(VERIFIER_CATEGORY, roundTwoPub.powf.powfstage2.ch3);
     }
   }
 #endif
@@ -253,18 +272,17 @@ const std::vector<RoundTwoPub> &BulletinBoard::getRoundTwoPubs() const {
   return roundTwoPubs_;
 }
 
-size_t BulletinBoard::track_ec_point_size(const EC_POINT *point) const {
-  // size_t len = EC_POINT_point2buf(group, point,
-  // POINT_CONVERSION_UNCOMPRESSED,
-  //                                 NULL, NULL);
+size_t BulletinBoard::track_ec_point_size(const std::string &category,
+                                          const EC_POINT *point) const {
   size_t len = EC_POINT_point2oct(group, point, POINT_CONVERSION_UNCOMPRESSED,
                                   NULL, 0, NULL);
-  DataTracker::getInstance().addData(len);
+  DataTracker::getInstance().addData(category, len);
   return len;
 }
 
-size_t BulletinBoard::track_bignum_size(const BIGNUM *bn) const {
+size_t BulletinBoard::track_bignum_size(const std::string &category,
+                                        const BIGNUM *bn) const {
   size_t len = BN_num_bytes(bn);
-  DataTracker::getInstance().addData(len);
+  DataTracker::getInstance().addData(category, len);
   return len;
 }

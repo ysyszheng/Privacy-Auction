@@ -24,7 +24,6 @@ $ cd <YOUR_FAVORITE_DIR> # i.e. cd ~/opt
 $ git clone https://github.com/microsoft/vcpkg
 $ ./vcpkg/bootstrap-vcpkg.sh
 # install third-party libraries
-$ ./vcpkg/vcpkg install cryptopp
 $ ./vcpkg/vcpkg install openssl
 ```
 

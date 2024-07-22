@@ -22,7 +22,7 @@ public:
 
   const std::vector<const EC_POINT *> getRoundOneXs() const;
   const std::vector<const EC_POINT *> getRoundTwoBs() const;
-  
+
   const std::vector<CommitmentPub> &getCommitments() const;
   const std::vector<RoundOnePub> &getRoundOnePubs() const;
   const std::vector<RoundTwoPub> &getRoundTwoPubs() const;
@@ -37,8 +37,8 @@ private:
   std::vector<RoundOnePub> roundOnePubs_;
   std::vector<RoundTwoPub> roundTwoPubs_;
 
-  size_t track_ec_point_size(const EC_POINT *) const;
-  size_t track_bignum_size(const BIGNUM *) const;
+  size_t track_ec_point_size(const std::string &, const EC_POINT *) const;
+  size_t track_bignum_size(const std::string &, const BIGNUM *) const;
 };
 
 #endif // BULLETIN_BOARD_H
