@@ -1,6 +1,8 @@
 #include "bidder.h"
 #include "bulletinBoard.h"
+#include "dataTracker.h"
 #include "params.h"
+#include "print.h"
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
@@ -44,6 +46,7 @@ int main(int argc, char *argv[]) {
 
   // PRINT_MESSAGE("Finished commitment.");
 
+#ifdef ENABLE_VERIFICATION
   // Verify commitments
   for (size_t j = 0; j < n; ++j) {
     if (!bidders[j].verifyCommitment(bb.getCommitments())) {
@@ -51,6 +54,7 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
   }
+#endif
 
   // PRINT_MESSAGE("Finished verification of commitments.");
 
@@ -62,6 +66,7 @@ int main(int argc, char *argv[]) {
 
     // PRINT_MESSAGE("Finished round one in step " << i << ".");
 
+#ifdef ENABLE_VERIFICATION
     for (size_t j = 0; j < n; ++j) {
       if (!bidders[j].verifyRoundOne(bb.getRoundOnePubs())) {
         PRINT_ERROR("Bidder " << j << " failed to verify round one in step "
@@ -69,15 +74,17 @@ int main(int argc, char *argv[]) {
         exit(1);
       }
     }
+#endif
 
     // PRINT_MESSAGE("Finished verification of round one in step " << i << ".");
 
     for (size_t j = 0; j < n; ++j) {
-      bb.addRoundTwoMsg(bidders[j].roundTwo(bb.getRoundOnePubs(), i), j);
+      bb.addRoundTwoMsg(bidders[j].roundTwo(bb.getRoundOneXs(), i), j);
     }
 
     // PRINT_MESSAGE("Finished round two in step " << i << ".");
 
+#ifdef ENABLE_VERIFICATION
     for (size_t j = 0; j < n; ++j) {
       if (!bidders[j].verifyRoundTwo(bb.getRoundTwoPubs(), i)) {
         PRINT_ERROR("Bidder " << j << " failed to verify round two in step "
@@ -85,11 +92,12 @@ int main(int argc, char *argv[]) {
         exit(1);
       }
     }
+#endif
 
     // PRINT_MESSAGE("Finished verification of round two in step " << i << ".");
 
     for (size_t j = 0; j < n; ++j) {
-      bidders[j].roundThree(bb.getRoundTwoPubs(), i);
+      bidders[j].roundThree(bb.getRoundTwoBs(), i);
     }
 
     // PRINT_MESSAGE("Finished step " << i << ".");
@@ -99,7 +107,13 @@ int main(int argc, char *argv[]) {
   auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
       end_time - start_time);
   double seconds = duration.count() / 1e6;
-  PRINT_INFO("Time: " << seconds << "s.");
+
+  PRINT_INFO(
+      "Time: "
+      << seconds << " s.\nData: "
+      << (static_cast<double>(DataTracker::getInstance().getTotalDataSize()) /
+          (1024 * 1024))
+      << " MB");
 
   // test correctness
   for (size_t i = 0; i < n; ++i) {

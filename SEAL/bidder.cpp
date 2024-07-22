@@ -1,6 +1,7 @@
 #include "bidder.h"
 #include "params.h"
 #include "hash.h"
+#include "print.h"
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -1244,11 +1245,11 @@ bool Bidder::verifyRoundOne(const std::vector<RoundOnePub> &pubs) {
 /**
  * @brief In the Round 2 phase, bidders encode their bid bits
  *
- * @param pubs RoundOnePub in order of bidders id, including self
+ * @param Xs X in RoundOnePub in order of bidders id, including self
  * @param step Current step of the auction, starting from 0
  * @return RoundTwoPub
  */
-RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> &pubs,
+RoundTwoPub Bidder::roundTwo(const std::vector<const EC_POINT *> Xs,
                              size_t step) {
   RoundTwoPub pub;
   BN_CTX *ctx = BN_CTX_new();
@@ -1260,16 +1261,16 @@ RoundTwoPub Bidder::roundTwo(const std::vector<RoundOnePub> &pubs,
   int bit = binaryBidStr[step] - '0';
 
   // calaulate Y for each bidder
-  assert(pubs.size() == n_);
+  assert(Xs.size() == n_);
   for (size_t id = 0; id < n_; ++id) {
     EC_POINT_set_to_infinity(group, firstHalfSum);
     for (size_t i = 0; i < id; ++i) {
-      EC_POINT_add(group, firstHalfSum, firstHalfSum, pubs[i].X, ctx);
+      EC_POINT_add(group, firstHalfSum, firstHalfSum, Xs[i], ctx);
     }
 
     EC_POINT_set_to_infinity(group, secondHalfSum);
-    for (size_t i = id + 1; i < pubs.size(); ++i) {
-      EC_POINT_add(group, secondHalfSum, secondHalfSum, pubs[i].X, ctx);
+    for (size_t i = id + 1; i < Xs.size(); ++i) {
+      EC_POINT_add(group, secondHalfSum, secondHalfSum, Xs[i], ctx);
     }
 
     EC_POINT_invert(group, secondHalfSum, ctx);
@@ -1351,16 +1352,17 @@ bool Bidder::verifyRoundTwo(const std::vector<RoundTwoPub> &pubs, size_t step) {
 /**
  * @brief In the Round 3 phase, bidders send their encoded bid bits
  *
- * @param pubs RoundTwoPub in order of bidders id, including self
+ * @param Bs b in RoundTwoPub in order of bidders id, including self
  * @param step Current step of the auction, starting from 0
  * @return size_t, 1 if winning bidder encodes bit 1 in this step, 0 otherwise
  */
-size_t Bidder::roundThree(const std::vector<RoundTwoPub> &pubs, size_t step) {
+size_t Bidder::roundThree(const std::vector<const EC_POINT *> Bs, size_t step) {
   BN_CTX *ctx = BN_CTX_new();
   EC_POINT *sum = EC_POINT_new(group);
 
-  for (size_t i = 0; i < pubs.size(); ++i) {
-    EC_POINT_add(group, sum, sum, pubs[i].b, ctx);
+  assert(Bs.size() == n_);
+  for (size_t i = 0; i < Bs.size(); ++i) {
+    EC_POINT_add(group, sum, sum, Bs[i], ctx);
   }
 
   if (!EC_POINT_is_at_infinity(group, sum)) {

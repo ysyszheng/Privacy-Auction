@@ -6,4 +6,7 @@
 
 #define C_MAX 32 // max length of bid in bits
 
+#define ENABLE_COMMUNICATION_TRACKING
+#define ENABLE_VERIFICATION
+
 #endif // PARAMS_H

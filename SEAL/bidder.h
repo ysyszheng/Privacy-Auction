@@ -34,8 +34,8 @@ public:
 
   CommitmentPub commitBid();
   RoundOnePub roundOne(size_t);
-  RoundTwoPub roundTwo(const std::vector<RoundOnePub> &, size_t);
-  size_t roundThree(const std::vector<RoundTwoPub> &, size_t);
+  RoundTwoPub roundTwo(const std::vector<const EC_POINT *>, size_t);
+  size_t roundThree(const std::vector<const EC_POINT *>, size_t);
 
   bool verifyCommitment(const std::vector<CommitmentPub> &);
   bool verifyRoundOne(const std::vector<RoundOnePub> &);
