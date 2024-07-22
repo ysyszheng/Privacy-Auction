@@ -18,7 +18,7 @@ public:
     categoryDataSizes_[category] += size;
   }
 
-  size_t getTotalDataSize() const { return totalDataSize_; }
+  size_t getTotalDataSize() const { return totalDataSize_; } // ! don't use this
 
   size_t getCategoryDataSize(const std::string &category) const {
     std::lock_guard<std::mutex> lock(mutex_);

@@ -26,7 +26,9 @@ int main(int argc, char *argv[]) {
 
   PRINT_MESSAGE("#bidders: n = " << n << ", bit length of bids: c = " << c);
 
-  // Initialization phase
+  // ================================================= //
+  // =============== Initialization phase ============ //
+  // ================================================= //
   for (size_t i = 0; i < n; ++i) {
     bidders.push_back(Bidder(i, n, c));
     bids.push_back(bidders[i].getBid());
@@ -38,46 +40,44 @@ int main(int argc, char *argv[]) {
                 << maxBid << ", Max bid (in binary): "
                 << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
 
-  TimeTracker bidderTimeTracker;       // Consider the total running time of all
-                                       // bidders and divide it by #bidders
-  TimeTracker verificationTimeTracker; // Only consider the verification time of
-                                       // one verifier
-
-  // Commit phase
-  bidderTimeTracker.start();
+  // ================================================= //
+  // =============== Commit phase ==================== //
+  // ================================================= //
   for (size_t j = 0; j < n; ++j) {
     bb.addCommitmentMsg(bidders[j].commitBid(), j);
   }
-  bidderTimeTracker.stop();
-
-  // PRINT_MESSAGE("Finished commitment.");
 
 #ifdef ENABLE_VERIFICATION
-  // Verify commitments
-  verificationTimeTracker.start();
+  // ================================================= //
+  // =============== Verify commitments ============== //
+  // ================================================= //
   for (size_t j = 0; j < n; ++j) {
     if (!bidders[j].verifyCommitment(bb.getCommitments())) {
       PRINT_ERROR("Bidder " << j << " failed to verify commitments.");
       exit(1);
     }
   }
-  verificationTimeTracker.stop();
 #endif
 
-  // PRINT_MESSAGE("Finished verification of commitments.");
-
-  // Auction phase, i is the step, j is the bidder id
+  // ============================================================ //
+  // ===== Auction phase, i is the step, j is the bidder id ===== //
+  // ============================================================ //
   for (size_t i = 0; i < c; ++i) {
-    bidderTimeTracker.start();
+    // ================================================= //
+    // =============== Start step i ==================== //
+    // ================================================= //
+
+    // ================================================= //
+    // =============== Round One ======================= //
+    // ================================================= //
     for (size_t j = 0; j < n; ++j) {
       bb.addRoundOneMsg(bidders[j].roundOne(i), j);
     }
-    bidderTimeTracker.stop();
-
-    // PRINT_MESSAGE("Finished round one in step " << i << ".");
 
 #ifdef ENABLE_VERIFICATION
-    verificationTimeTracker.start();
+    // ================================================= //
+    // =============== Verify Round One ================ //
+    // ================================================= //
     for (size_t j = 0; j < n; ++j) {
       if (!bidders[j].verifyRoundOne(bb.getRoundOnePubs())) {
         PRINT_ERROR("Bidder " << j << " failed to verify round one in step "
@@ -85,21 +85,19 @@ int main(int argc, char *argv[]) {
         exit(1);
       }
     }
-    verificationTimeTracker.stop();
 #endif
 
-    // PRINT_MESSAGE("Finished verification of round one in step " << i << ".");
-
-    bidderTimeTracker.start();
+    // ================================================= //
+    // =============== Round Two ======================= //
+    // ================================================= //
     for (size_t j = 0; j < n; ++j) {
       bb.addRoundTwoMsg(bidders[j].roundTwo(bb.getRoundOneXs(), i), j);
     }
-    bidderTimeTracker.stop();
-
-    // PRINT_MESSAGE("Finished round two in step " << i << ".");
 
 #ifdef ENABLE_VERIFICATION
-    verificationTimeTracker.start();
+    // ================================================= //
+    // =============== Verify Round Two ================ //
+    // ================================================= //
     for (size_t j = 0; j < n; ++j) {
       if (!bidders[j].verifyRoundTwo(bb.getRoundTwoPubs(), i)) {
         PRINT_ERROR("Bidder " << j << " failed to verify round two in step "
@@ -107,26 +105,33 @@ int main(int argc, char *argv[]) {
         exit(1);
       }
     }
-    verificationTimeTracker.stop();
 #endif
 
-    // PRINT_MESSAGE("Finished verification of round two in step " << i << ".");
-
-    bidderTimeTracker.start();
+    // ================================================= //
+    // =============== Round Three ===================== //
+    // ================================================= //
     for (size_t j = 0; j < n; ++j) {
       bidders[j].roundThree(bb.getRoundTwoBs(), i);
     }
-    bidderTimeTracker.stop();
 
-    // PRINT_MESSAGE("Finished step " << i << ".");
+    // ================================================= //
+    // =============== Finish Step i =================== //
+    // ================================================= //
   }
 
+  // ================================================= //
+  // =============== Print info ====================== //
+  // ================================================= //
   PRINT_INFO(
       "Time (one bidder): "
-      << bidderTimeTracker.getTotalTimeInSecond() / n << " s." << std::endl
+      << TimeTracker::getInstance().getCategoryTimeInSeconds(BIDDER_CATEGORY) /
+             n
+      << " s." << std::endl
       << "Time (one verifier): "
-      << verificationTimeTracker.getTotalTimeInSecond() / n << " s."
-      << std::endl
+      << TimeTracker::getInstance().getCategoryTimeInSeconds(
+             VERIFIER_CATEGORY) /
+             n
+      << " s." << std::endl
       << "Data (one bidder): "
       << static_cast<double>(
              DataTracker::getInstance().getCategoryDataSize(BIDDER_CATEGORY)) /
@@ -138,7 +143,9 @@ int main(int argc, char *argv[]) {
              (1024 * 1024) / n
       << " MB");
 
-  // test correctness
+  // ================================================= //
+  // ============== Test Correctness ================= //
+  // ================================================= //
   for (size_t i = 0; i < n; ++i) {
     if (bidders[i].getMaxBid() != maxBid) {
       flag = false;
@@ -150,5 +157,6 @@ int main(int argc, char *argv[]) {
                   << maxBid << ", Max bid (in binary): "
                   << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
   }
+
   return 0;
 }

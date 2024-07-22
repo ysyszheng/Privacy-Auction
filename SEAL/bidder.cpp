@@ -1,7 +1,8 @@
 #include "bidder.h"
-#include "params.h"
 #include "hash.h"
+#include "params.h"
 #include "print.h"
+#include "timeTracker.h"
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -1106,6 +1107,8 @@ bool Bidder::verNIZKPoWFStage2(const NIZKPoWFStage2 &proof, const EC_POINT *Bi,
  * @return CommitmentPub, i.e. std::vector<CommitmentPerBit>
  */
 CommitmentPub Bidder::commitBid() {
+  TimeTracker::getInstance().start(BIDDER_CATEGORY);
+
   CommitmentPub pubs(c_);
   int bit;
 
@@ -1153,6 +1156,8 @@ CommitmentPub Bidder::commitBid() {
                    alpha, bit, ctx);
   }
 
+  TimeTracker::getInstance().stop(BIDDER_CATEGORY);
+
   return pubs;
 }
 
@@ -1164,6 +1169,8 @@ CommitmentPub Bidder::commitBid() {
  * false otherwise
  */
 bool Bidder::verifyCommitment(const std::vector<CommitmentPub> &pubs) {
+  TimeTracker::getInstance().start(VERIFIER_CATEGORY);
+
   bool ret = true;
   commitmentsBB = pubs;
 
@@ -1181,6 +1188,9 @@ bool Bidder::verifyCommitment(const std::vector<CommitmentPub> &pubs) {
       }
     }
   }
+
+  TimeTracker::getInstance().stop(VERIFIER_CATEGORY);
+
   return ret;
 }
 
@@ -1191,6 +1201,8 @@ bool Bidder::verifyCommitment(const std::vector<CommitmentPub> &pubs) {
  * @return RoundOnePub
  */
 RoundOnePub Bidder::roundOne(size_t step) {
+  TimeTracker::getInstance().start(BIDDER_CATEGORY);
+
   RoundOnePub pub;
   BN_CTX *ctx = BN_CTX_new();
   BIGNUM *x = BN_new();
@@ -1218,6 +1230,8 @@ RoundOnePub Bidder::roundOne(size_t step) {
   genNIZKPoKDLog(pub.pokdlogX, X, x, ctx);
   genNIZKPoKDLog(pub.pokdlogR, R, r, ctx);
 
+  TimeTracker::getInstance().stop(BIDDER_CATEGORY);
+
   return pub;
 }
 
@@ -1229,6 +1243,8 @@ RoundOnePub Bidder::roundOne(size_t step) {
  * valid, false otherwise
  */
 bool Bidder::verifyRoundOne(const std::vector<RoundOnePub> &pubs) {
+  TimeTracker::getInstance().start(VERIFIER_CATEGORY);
+
   bool ret = true;
   BN_CTX *ctx = BN_CTX_new();
   for (size_t i = 0; i < pubs.size(); ++i) {
@@ -1239,6 +1255,9 @@ bool Bidder::verifyRoundOne(const std::vector<RoundOnePub> &pubs) {
       curInfo[i].R = pubs[i].R;
     }
   }
+
+  TimeTracker::getInstance().stop(VERIFIER_CATEGORY);
+
   return ret;
 }
 
@@ -1251,6 +1270,8 @@ bool Bidder::verifyRoundOne(const std::vector<RoundOnePub> &pubs) {
  */
 RoundTwoPub Bidder::roundTwo(const std::vector<const EC_POINT *> Xs,
                              size_t step) {
+  TimeTracker::getInstance().start(BIDDER_CATEGORY);
+
   RoundTwoPub pub;
   BN_CTX *ctx = BN_CTX_new();
   EC_POINT *b =
@@ -1309,6 +1330,8 @@ RoundTwoPub Bidder::roundTwo(const std::vector<const EC_POINT *> Xs,
                       prevDecidingBit, ctx);
   }
 
+  TimeTracker::getInstance().stop(BIDDER_CATEGORY);
+
   return pub;
 }
 
@@ -1321,6 +1344,8 @@ RoundTwoPub Bidder::roundTwo(const std::vector<const EC_POINT *> Xs,
  * valid, false otherwise
  */
 bool Bidder::verifyRoundTwo(const std::vector<RoundTwoPub> &pubs, size_t step) {
+  TimeTracker::getInstance().start(VERIFIER_CATEGORY);
+
   bool ret = true;
   BN_CTX *ctx = BN_CTX_new();
 
@@ -1346,6 +1371,8 @@ bool Bidder::verifyRoundTwo(const std::vector<RoundTwoPub> &pubs, size_t step) {
     }
   }
 
+  TimeTracker::getInstance().stop(VERIFIER_CATEGORY);
+
   return ret;
 }
 
@@ -1357,6 +1384,8 @@ bool Bidder::verifyRoundTwo(const std::vector<RoundTwoPub> &pubs, size_t step) {
  * @return size_t, 1 if winning bidder encodes bit 1 in this step, 0 otherwise
  */
 size_t Bidder::roundThree(const std::vector<const EC_POINT *> Bs, size_t step) {
+  TimeTracker::getInstance().start(BIDDER_CATEGORY);
+
   BN_CTX *ctx = BN_CTX_new();
   EC_POINT *sum = EC_POINT_new(group);
 
@@ -1381,8 +1410,12 @@ size_t Bidder::roundThree(const std::vector<const EC_POINT *> Bs, size_t step) {
       EC_POINT_copy(prevDecidingInfo[i].b, curInfo[i].b);
     }
 
+    TimeTracker::getInstance().stop(BIDDER_CATEGORY);
+
     return 1;
   }
+
+  TimeTracker::getInstance().stop(BIDDER_CATEGORY);
 
   return 0;
 }
