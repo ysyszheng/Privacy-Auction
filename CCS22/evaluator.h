@@ -17,13 +17,16 @@ public:
   void BESEncode(const std::vector<EC_POINT *> &, size_t) override;
 
   const OT_S *OTSend(size_t, const OT_R1 &) = delete;
-  void enterDeciderRound(size_t) = delete;
+  void checkIfEnterDeciderRound(size_t) = delete;
 
-  const OT_R1 &OTReceive1(size_t);
-  size_t OTReceive2(size_t, const std::vector<const OT_S *> &);
+  const OT_R1_VEC OTReceive1(size_t);
+  size_t OTReceive2(size_t, const OT_S_VEC);
 
 private:
+  std::vector<std::vector<BIGNUM *>> randomBeta; // randomness in OT
   std::vector<EC_POINT *> Bs;
+
+  void setupInner() override;
 };
 
 #endif // EVALUATOR_H

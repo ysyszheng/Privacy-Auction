@@ -88,9 +88,6 @@ int main(int argc, char *argv[]) {
     // ================================================= //
     // ============ Start step-th step ================= //
     // ================================================= //
-    OT_R1 otr1; // TODO: move to bb.cpp
-    std::vector<const OT_S *> ots(n - 1);
-    size_t d = 0;
 
     // ================================================= //
     // ============== BESEncode ======================== //
@@ -106,31 +103,29 @@ int main(int argc, char *argv[]) {
     // ================================================= //
     // ============== OT Receive 1 ===================== //
     // ================================================= //
-    otr1 = evaluator.OTReceive1(step);
+    bb.addOTR1Vec(evaluator.OTReceive1(step));
 
     // ================================================= //
     // ================== OT Send ====================== //
     // ================================================= //
     for (size_t i = 0; i < n; ++i) {
       if (i != evaluatorId) {
-        ots[pos(i)] = bidders[pos(i)].OTSend(step, otr1);
+        bb.addOTS(pos(i), bidders[pos(i)].OTSend(step, bb.getOTR1(pos(i))));
       }
     }
 
     // ================================================= //
     // ============== OT Receive 2 ===================== //
     // ================================================= //
-    d = evaluator.OTReceive2(step, ots);
+    bb.addd(evaluator.OTReceive2(step, bb.getOTSVec()));
 
-    if (d == 1) {
-      for (size_t i = 0; i < n; ++i) {
-        if (i != evaluatorId) {
-          bidders[pos(i)].enterDeciderRound(step);
-        }
+    for (size_t i = 0; i < n; ++i) {
+      if (i != evaluatorId) {
+        bidders[pos(i)].checkIfEnterDeciderRound(step, bb.getd());
       }
     }
     // ================================================= //
-    // ============ End step-th step ================= //
+    // ============ End step-th step =================== //
     // ================================================= //
   }
 
@@ -139,11 +134,13 @@ int main(int argc, char *argv[]) {
   // ================================================= //
 
   // ================================================= //
-  // =======  TODO: Print info ======================= //
+  // ============== Print info ======================= //
   // ================================================= //
 
   PRINT_INFO(
-      "Time (one bidder): "
+      "#bidders: n = "
+      << n << ", bit length of bids: c = " << c << std::endl
+      << "Time (one bidder): "
       << TimeTracker::getInstance().getCategoryTimeInSeconds(BIDDER_CATEGORY) /
              (n - 1) // n-1 common bidder
       << " s." << std::endl
@@ -151,17 +148,24 @@ int main(int argc, char *argv[]) {
       << TimeTracker::getInstance().getCategoryTimeInSeconds(
              EVALUATOR_CATEGORY) // only 1 evaluator
       << " s." << std::endl
-      // TODO: time for verifier + data
       << "Data (one bidder): "
-      << static_cast<double>(
-             DataTracker::getInstance().getCategoryDataSize(BIDDER_CATEGORY)) /
-             (1024 * 1024) / n
+      << DataTracker::getInstance().getCategoryDataSizeInMB(BIDDER_CATEGORY) /
+                 (n - 1) +
+             DataTracker::getInstance().getCategoryDataSizeInMB(
+                 BIDDER_AND_EVALUATOR_CATEGORY) /
+                 n
       << " MB" << std::endl
-      << "Data (one verifier): "
-      << static_cast<double>(DataTracker::getInstance().getCategoryDataSize(
-             VERIFIER_CATEGORY)) /
-             (1024 * 1024) / n
-      << " MB");
+      << "Data (one evaluator): "
+      << DataTracker::getInstance().getCategoryDataSizeInMB(
+             EVALUATOR_CATEGORY) +
+             DataTracker::getInstance().getCategoryDataSizeInMB(
+                 BIDDER_AND_EVALUATOR_CATEGORY) /
+                 n
+      << " MB" << std::endl
+      << "Data (total communication, #bidders=" << n - 1
+      << " ,#evaluators=" << 1
+      << "): " << DataTracker::getInstance().getTotalDataSizeInMB() << " MB");
+  // TODO: time for verifier + data
 
   // ================================================= //
   // ============== Test Correctness ================= //
@@ -185,11 +189,11 @@ int main(int argc, char *argv[]) {
       }
     }
   }
-  if (flag) {
-    PRINT_MESSAGE("Finished auction, all bidder calculated max bid.\nMax bid: "
-                  << maxBid << ", Max bid (in binary): "
-                  << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
-    return 0;
+  if (!flag) {
+    exit(1);
   }
-  return 1;
+  PRINT_MESSAGE("Finished auction, all bidder calculated max bid.\nMax bid: "
+                << maxBid << ", Max bid (in binary): "
+                << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
+  return 0;
 }

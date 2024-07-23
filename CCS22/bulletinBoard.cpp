@@ -1,6 +1,8 @@
 #include "bulletinBoard.h"
 #include "dataTracker.h"
 #include "params.h"
+#include "print.h"
+#include "types.h"
 #include <cassert>
 #include <cstddef>
 #include <openssl/bn.h>
@@ -54,6 +56,8 @@ BulletinBoard::BulletinBoard(size_t n, size_t c)
   for (size_t i = 0; i < n; i++) {
     pubKeys_[i].resize(c);
   }
+  ot_r1_vec_.reserve(n - 1);
+  ot_s_vec_.resize(n - 1);
 }
 
 const PubParams &BulletinBoard::getPubParams() const {
@@ -66,6 +70,7 @@ const PubParams &BulletinBoard::getPubParams() const {
 
   track_bignum_size(BIDDER_AND_EVALUATOR_CATEGORY, pubParams_.order);
 #endif
+
   return pubParams_;
 }
 
@@ -109,6 +114,71 @@ BulletinBoard::getPublicKeysByStep(size_t step) const {
 #endif
   }
   return pubKeys;
+}
+
+void BulletinBoard::addOTR1Vec(OT_R1_VEC ot_r1_vec) {
+  ot_r1_vec_ = ot_r1_vec;
+
+#ifdef ENABLE_COMMUNICATION_TRACKING
+  for (auto &ot_r1 : ot_r1_vec) {
+    track_ec_point_size(EVALUATOR_CATEGORY, ot_r1->T2);
+    track_ec_point_size(EVALUATOR_CATEGORY, ot_r1->G);
+    track_ec_point_size(EVALUATOR_CATEGORY, ot_r1->H);
+  }
+#endif
+}
+
+/**
+ * @brief
+ *
+ * @param id_wo_e id index without evaluator, should use pos(id)
+ */
+OT_R1 BulletinBoard::getOTR1(size_t id_wo_e) const {
+#ifdef ENABLE_COMMUNICATION_TRACKING
+  track_ec_point_size(BIDDER_CATEGORY, ot_r1_vec_[id_wo_e]->T2);
+  track_ec_point_size(BIDDER_CATEGORY, ot_r1_vec_[id_wo_e]->G);
+  track_ec_point_size(BIDDER_CATEGORY, ot_r1_vec_[id_wo_e]->H);
+#endif
+
+  return *ot_r1_vec_[id_wo_e];
+}
+
+void BulletinBoard::addOTS(size_t id_wo_e, const OT_S *ot_s) {
+#ifdef ENABLE_COMMUNICATION_TRACKING
+  track_ec_point_size(BIDDER_CATEGORY, ot_s->C0);
+  track_ec_point_size(BIDDER_CATEGORY, ot_s->C1);
+  track_ec_point_size(BIDDER_CATEGORY, ot_s->z);
+#endif
+
+  ot_s_vec_[id_wo_e] = ot_s;
+}
+
+OT_S_VEC BulletinBoard::getOTSVec() const {
+#ifdef ENABLE_COMMUNICATION_TRACKING
+  for (auto &ot_s : ot_s_vec_) {
+    track_ec_point_size(EVALUATOR_CATEGORY, ot_s->C0);
+    track_ec_point_size(EVALUATOR_CATEGORY, ot_s->C1);
+    track_ec_point_size(EVALUATOR_CATEGORY, ot_s->z);
+  }
+#endif
+
+  return ot_s_vec_;
+}
+
+void BulletinBoard::addd(size_t d) {
+#ifdef ENABLE_COMMUNICATION_TRACKING
+  DataTracker::getInstance().addData(EVALUATOR_CATEGORY, sizeof(d));
+#endif
+
+  d_ = d;
+}
+
+size_t BulletinBoard::getd() const {
+#ifdef ENABLE_COMMUNICATION_TRACKING
+  DataTracker::getInstance().addData(BIDDER_CATEGORY, sizeof(d_));
+#endif
+
+  return d_;
 }
 
 size_t BulletinBoard::track_ec_group_size(const std::string &category,

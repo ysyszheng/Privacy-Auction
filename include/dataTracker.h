@@ -18,13 +18,26 @@ public:
     categoryDataSizes_[category] += size;
   }
 
-  size_t getTotalDataSize() const { return totalDataSize_; } // ! don't use this
+  size_t getTotalDataSize() const { return totalDataSize_; }
+
+  double getTotalDataSizeInMB() const {
+    return static_cast<double>(totalDataSize_) / (1024 * 1024);
+  }
 
   size_t getCategoryDataSize(const std::string &category) const {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = categoryDataSizes_.find(category);
     if (it != categoryDataSizes_.end()) {
       return it->second;
+    }
+    return 0;
+  }
+
+  double getCategoryDataSizeInMB(const std::string &category) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = categoryDataSizes_.find(category);
+    if (it != categoryDataSizes_.end()) {
+      return static_cast<double>(it->second) / (1024 * 1024);
     }
     return 0;
   }

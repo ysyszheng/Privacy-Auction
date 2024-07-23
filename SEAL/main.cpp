@@ -120,10 +120,16 @@ int main(int argc, char *argv[]) {
   }
 
   // ================================================= //
+  // =======  TODO: Reveal winner ==================== //
+  // ================================================= //
+
+  // ================================================= //
   // =============== Print info ====================== //
   // ================================================= //
   PRINT_INFO(
-      "Time (one bidder): "
+      "#bidders: n = "
+      << n << ", bit length of bids: c = " << c << std::endl
+      << "Time (one bidder): "
       << TimeTracker::getInstance().getCategoryTimeInSeconds(BIDDER_CATEGORY) /
              n
       << " s." << std::endl
@@ -133,15 +139,14 @@ int main(int argc, char *argv[]) {
              n
       << " s." << std::endl
       << "Data (one bidder): "
-      << static_cast<double>(
-             DataTracker::getInstance().getCategoryDataSize(BIDDER_CATEGORY)) /
-             (1024 * 1024) / n
+      << DataTracker::getInstance().getCategoryDataSizeInMB(BIDDER_CATEGORY) / n
       << " MB" << std::endl
       << "Data (one verifier): "
-      << static_cast<double>(DataTracker::getInstance().getCategoryDataSize(
-             VERIFIER_CATEGORY)) /
-             (1024 * 1024) / n
-      << " MB");
+      << DataTracker::getInstance().getCategoryDataSizeInMB(VERIFIER_CATEGORY) /
+             n
+      << " MB" << std::endl
+      << "Data (total communication, #bidders=" << n << " ,#verifiers=" << n
+      << "): " << DataTracker::getInstance().getTotalDataSizeInMB() << " MB");
 
   // ================================================= //
   // ============== Test Correctness ================= //
@@ -152,11 +157,11 @@ int main(int argc, char *argv[]) {
       PRINT_ERROR("Bidder " << i << " failed to calculate max bid.");
     }
   }
-  if (flag) {
-    PRINT_MESSAGE("Finished auction, all bidder calculated max bid.\nMax bid: "
-                  << maxBid << ", Max bid (in binary): "
-                  << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
+  if (!flag) {
+    exit(1);
   }
-
+  PRINT_MESSAGE("Finished auction, all bidder calculated max bid.\nMax bid: "
+                << maxBid << ", Max bid (in binary): "
+                << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
   return 0;
 }

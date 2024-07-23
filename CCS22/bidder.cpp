@@ -25,7 +25,8 @@ Bidder::Bidder(size_t id, size_t n, size_t c, const PubParams &pubParams)
         }
         return R;
       }()),
-      B(EC_POINT_new(group)), inRaceFlag(true), maxBid(0) {
+      B(EC_POINT_new(group)), inRaceFlag(true), maxBid(0), randomS(c),
+      randomT(c) {
   assert(c <= C_MAX);
 
   random_device rd;
@@ -45,7 +46,7 @@ size_t Bidder::getBid() { return bid_; }
 size_t Bidder::getMaxBid() { return maxBid; }
 
 void Bidder::setupInner() {
-  size_t array_len = 3 * c_;
+  size_t array_len = 4 * c_;
   const BIGNUM *bns[array_len];
   BIGNUM *H = BN_new();
   BIGNUM *bnBid = BN_new();
@@ -56,19 +57,24 @@ void Bidder::setupInner() {
   for (size_t i = 0; i < c_; i++) {
     BIGNUM *x = BN_new();
     BIGNUM *r = BN_new();
-    BIGNUM *gamma = BN_new();
+    BIGNUM *s = BN_new();
+    BIGNUM *t = BN_new();
     EC_POINT *X = EC_POINT_new(group);
 
     BN_rand_range(x, order);
     BN_rand_range(r, order);
-    BN_rand_range(gamma, order);
+    BN_rand_range(s, order);
+    BN_rand_range(t, order);
     EC_POINT_mul(group, X, x, NULL, NULL, ctx);
 
-    privKeys[i] = new PrivKey{x, r, gamma};
+    privKeys[i] = new PrivKey{x, r};
     pubKeys[i] = X;
+    randomS[i] = s;
+    randomT[i] = t;
     bns[i] = x;
     bns[c_ + i] = r;
-    bns[2 * c_ + i] = gamma;
+    bns[2 * c_ + i] = s;
+    bns[3 * c_ + i] = t;
   }
 
   // generate hash
@@ -151,8 +157,6 @@ const OT_S *Bidder::OTSend(size_t step, const OT_R1 &otr1) {
   // affect testing, but may affect security
   TimeTracker::getInstance().start(BIDDER_CATEGORY);
 
-  BIGNUM *s = BN_new();
-  BIGNUM *t = BN_new();
   BIGNUM *bn = BN_new();
   EC_POINT *z = EC_POINT_new(group);
   EC_POINT *C0 = EC_POINT_new(group);
@@ -166,24 +170,22 @@ const OT_S *Bidder::OTSend(size_t step, const OT_R1 &otr1) {
   BN_rand(bn, 256, -1, 0);
   EC_POINT_mul(group, M1, bn, NULL, NULL, ctx);
 
-  BN_rand_range(s, order);
-  BN_rand_range(t, order);
-  EC_POINT_mul(group, z, s, h, t, ctx); // z = h^t * g^s
+  EC_POINT_mul(group, z, randomS[step], h, randomT[step], ctx); // z = h^t * g^s
 
-  EC_POINT_mul(group, tmp1, NULL, otr1.G, s, ctx);
-  EC_POINT_mul(group, C0, NULL, otr1.H, t, ctx);
+  EC_POINT_mul(group, tmp1, NULL, otr1.G, randomS[step], ctx);
+  EC_POINT_mul(group, C0, NULL, otr1.H, randomT[step], ctx);
   EC_POINT_add(group, C0, tmp1, C0, ctx);
   EC_POINT_add(group, C0, C0, B, ctx); // C0 = G^s * H^t * M0 (M0 = B)
 
-  EC_POINT_copy(tmp1, otr1.T1);
+  EC_POINT_copy(tmp1, g1);           // FIXME: let T1=g1
   EC_POINT_invert(group, tmp1, ctx); // tmp1 = T1^{-1}
   EC_POINT_copy(tmp2, otr1.T2);
   EC_POINT_invert(group, tmp2, ctx); // tmp2 = T2^{-1}
 
   EC_POINT_add(group, tmp1, tmp1, otr1.G, ctx);
   EC_POINT_add(group, tmp2, tmp2, otr1.H, ctx);
-  EC_POINT_mul(group, tmp1, NULL, tmp1, s, ctx);
-  EC_POINT_mul(group, tmp2, NULL, tmp2, t, ctx);
+  EC_POINT_mul(group, tmp1, NULL, tmp1, randomS[step], ctx);
+  EC_POINT_mul(group, tmp2, NULL, tmp2, randomT[step], ctx);
   EC_POINT_add(group, C1, tmp1, tmp2, ctx);
   EC_POINT_add(group, C1, C1, M1, ctx); // C1 = (G/T1)^s * (H/T2)^t * M1
 
@@ -195,8 +197,15 @@ const OT_S *Bidder::OTSend(size_t step, const OT_R1 &otr1) {
   return ot_s;
 }
 
-void Bidder::enterDeciderRound(size_t step) {
+void Bidder::checkIfEnterDeciderRound(size_t step, size_t new_d) {
   TimeTracker::getInstance().start(BIDDER_CATEGORY);
+  assert(new_d == 0 || new_d == 1);
+
+  if (new_d == 0) {
+    TimeTracker::getInstance().stop(BIDDER_CATEGORY);
+    return;
+  }
+
   inRaceFlag = d == 0 ? false : inRaceFlag;
   maxBid |= (1 << (c_ - step - 1));
   TimeTracker::getInstance().stop(BIDDER_CATEGORY);

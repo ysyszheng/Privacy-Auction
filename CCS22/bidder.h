@@ -28,13 +28,12 @@ public:
 
   virtual void BESEncode(const std::vector<EC_POINT *> &, size_t);
   const OT_S *OTSend(size_t, const OT_R1 &);
-  void enterDeciderRound(size_t);
+  void checkIfEnterDeciderRound(size_t, size_t);
 
 protected:
   typedef struct {
     BIGNUM *x;
     BIGNUM *r;
-    BIGNUM *randomness; // gamma in common bidders, beta in evaluator
   } PrivKey;
 
   std::vector<PrivKey *> privKeys;
@@ -62,8 +61,12 @@ protected:
   size_t maxBid;
   std::string binaryBidStr;
 
-  void setupInner();
+  virtual void setupInner();
   void BESEncodeInner(const std::vector<EC_POINT *> &, size_t);
+
+private:
+  std::vector<BIGNUM *> randomS; // randomness in OT
+  std::vector<BIGNUM *> randomT; // randomness in OT
 };
 
 #endif // BIDDER_H
