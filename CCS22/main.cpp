@@ -1,11 +1,12 @@
 #include "bidder.h"
 #include "bulletinBoard.h"
+#include "dataTracker.h"
 #include "evaluator.h"
 #include "params.h"
 #include "print.h"
+#include "timeTracker.h"
 #include "types.h"
 #include <cassert>
-#include <chrono>
 #include <cstddef>
 #include <iostream>
 #include <random>
@@ -27,8 +28,9 @@ int main(int argc, char *argv[]) {
   std::vector<Bidder> bidders; // size of bidders (exclude evaluator) is n - 1
   BulletinBoard bb(n, c);
 
-  // Initialization Phase
-  const PubParams &pubParams = bb.getPubParams();
+  // ================================================= //
+  // =============== Initialization phase ============ //
+  // ================================================= //
   random_device rd;
   mt19937 gen(rd());
   uniform_int_distribution<size_t> dist(0, n - 1);
@@ -44,12 +46,16 @@ int main(int argc, char *argv[]) {
                                     "Evaluator: "
                                  << evaluatorId);
 
-  Evaluator evaluator(evaluatorId, n, c, pubParams);
+  Evaluator evaluator(
+      evaluatorId, n, c,
+      bb.getPubParams()); // Directly call `bb.getPubParams()` to simulate the
+                          // communication process and record the communication
+                          // overhead
   for (size_t i = 0; i < n; ++i) {
     if (i == evaluatorId) {
       bids.push_back(evaluator.getBid());
     } else {
-      bidders.push_back(Bidder(i, n, c, pubParams));
+      bidders.push_back(Bidder(i, n, c, bb.getPubParams()));
       bids.push_back(bidders[pos(i)].getBid());
     }
   }
@@ -60,9 +66,9 @@ int main(int argc, char *argv[]) {
                 << maxBid << ", Max bid (in binary): "
                 << std::bitset<C_MAX>(maxBid).to_string().substr(C_MAX - c));
 
-  auto start_time = std::chrono::high_resolution_clock::now();
-
-  // Steup Phase
+  // ================================================= //
+  // =============== Steup Phase ===================== //
+  // ================================================= //
   for (size_t i = 0; i < n; ++i) {
     if (i == evaluatorId) {
       evaluator.setup();
@@ -75,13 +81,20 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // Computation Phase
+  // ================================================= //
+  // =============== Computation Phase =============== //
+  // ================================================= //
   for (size_t step = 0; step < c; ++step) {
-    OT_R1 otr1;
+    // ================================================= //
+    // ============ Start step-th step ================= //
+    // ================================================= //
+    OT_R1 otr1; // TODO: move to bb.cpp
     std::vector<const OT_S *> ots(n - 1);
     size_t d = 0;
 
-    // BESEncode
+    // ================================================= //
+    // ============== BESEncode ======================== //
+    // ================================================= //
     for (size_t i = 0; i < n; ++i) {
       if (i == evaluatorId) {
         evaluator.BESEncode(bb.getPublicKeysByStep(step), step);
@@ -90,17 +103,23 @@ int main(int argc, char *argv[]) {
       }
     }
 
-    // OT Receive1
+    // ================================================= //
+    // ============== OT Receive 1 ===================== //
+    // ================================================= //
     otr1 = evaluator.OTReceive1(step);
 
-    // OT Send
+    // ================================================= //
+    // ================== OT Send ====================== //
+    // ================================================= //
     for (size_t i = 0; i < n; ++i) {
       if (i != evaluatorId) {
         ots[pos(i)] = bidders[pos(i)].OTSend(step, otr1);
       }
     }
 
-    // OT Receive2
+    // ================================================= //
+    // ============== OT Receive 2 ===================== //
+    // ================================================= //
     d = evaluator.OTReceive2(step, ots);
 
     if (d == 1) {
@@ -110,17 +129,43 @@ int main(int argc, char *argv[]) {
         }
       }
     }
+    // ================================================= //
+    // ============ End step-th step ================= //
+    // ================================================= //
   }
 
-  // TODO: Verification Phase
+  // ================================================= //
+  // =======  TODO: Verification Phase =============== //
+  // ================================================= //
 
-  auto end_time = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-      end_time - start_time);
-  double seconds = duration.count() / 1e6;
-  PRINT_INFO("Time: " << seconds << "s.");
+  // ================================================= //
+  // =======  TODO: Print info ======================= //
+  // ================================================= //
 
-  // test correctness
+  PRINT_INFO(
+      "Time (one bidder): "
+      << TimeTracker::getInstance().getCategoryTimeInSeconds(BIDDER_CATEGORY) /
+             (n - 1) // n-1 common bidder
+      << " s." << std::endl
+      << "Time (one evaluator): "
+      << TimeTracker::getInstance().getCategoryTimeInSeconds(
+             EVALUATOR_CATEGORY) // only 1 evaluator
+      << " s." << std::endl
+      // TODO: time for verifier + data
+      << "Data (one bidder): "
+      << static_cast<double>(
+             DataTracker::getInstance().getCategoryDataSize(BIDDER_CATEGORY)) /
+             (1024 * 1024) / n
+      << " MB" << std::endl
+      << "Data (one verifier): "
+      << static_cast<double>(DataTracker::getInstance().getCategoryDataSize(
+             VERIFIER_CATEGORY)) /
+             (1024 * 1024) / n
+      << " MB");
+
+  // ================================================= //
+  // ============== Test Correctness ================= //
+  // ================================================= //
   for (size_t i = 0; i < n; ++i) {
     if (i == evaluatorId) {
       if (evaluator.getMaxBid() != maxBid) {

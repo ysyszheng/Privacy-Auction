@@ -16,16 +16,17 @@
 class Bidder {
 public:
   Bidder(size_t, size_t, size_t, const PubParams &);
+  virtual ~Bidder() = default;
 
   size_t getId();
   size_t getBid();
   size_t getMaxBid();
 
-  void setup();
+  virtual void setup();
   const EC_POINT *getCommitments() const;
   const std::vector<EC_POINT *> &getPubKeys() const;
 
-  void BESEncode(const std::vector<EC_POINT *> &, size_t);
+  virtual void BESEncode(const std::vector<EC_POINT *> &, size_t);
   const OT_S *OTSend(size_t, const OT_R1 &);
   void enterDeciderRound(size_t);
 
@@ -60,6 +61,9 @@ protected:
   size_t d;
   size_t maxBid;
   std::string binaryBidStr;
+
+  void setupInner();
+  void BESEncodeInner(const std::vector<EC_POINT *> &, size_t);
 };
 
 #endif // BIDDER_H

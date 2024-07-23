@@ -34,6 +34,10 @@ private:
 
   std::vector<const EC_POINT *> commitments_;
   std::vector<std::vector<EC_POINT *>> pubKeys_;
+
+  size_t track_ec_group_size(const std::string &, const EC_GROUP *) const;
+  size_t track_ec_point_size(const std::string &, const EC_POINT *) const;
+  size_t track_bignum_size(const std::string &, const BIGNUM *) const;
 };
 
 #endif // BULLETIN_BOARD_H

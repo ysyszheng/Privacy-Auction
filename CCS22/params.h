@@ -6,4 +6,12 @@
 
 #define C_MAX 32 // max length of bid in bits
 
+#define BIDDER_CATEGORY "bidder"
+#define EVALUATOR_CATEGORY "evaluator"
+#define BIDDER_AND_EVALUATOR_CATEGORY "bidder_and_evaluator"
+#define VERIFIER_CATEGORY "verifier"
+
+#define ENABLE_COMMUNICATION_TRACKING
+#define ENABLE_VERIFICATION
+
 #endif // PARAMS_H

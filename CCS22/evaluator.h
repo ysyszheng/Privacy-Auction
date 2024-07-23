@@ -13,6 +13,9 @@ class Evaluator : public Bidder {
 public:
   Evaluator(size_t, size_t, size_t, const PubParams &);
 
+  void setup() override;
+  void BESEncode(const std::vector<EC_POINT *> &, size_t) override;
+
   const OT_S *OTSend(size_t, const OT_R1 &) = delete;
   void enterDeciderRound(size_t) = delete;
 

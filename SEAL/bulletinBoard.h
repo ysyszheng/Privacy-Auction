@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-// FIXME: use memcopy?
 class BulletinBoard {
 public:
   BulletinBoard(size_t, size_t);

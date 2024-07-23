@@ -1,6 +1,9 @@
 #include "bidder.h"
+#include "dataTracker.h"
 #include "hash.h"
+#include "params.h"
 #include "print.h"
+#include "timeTracker.h"
 #include "types.h"
 #include <cassert>
 #include <cstddef>
@@ -41,7 +44,7 @@ size_t Bidder::getBid() { return bid_; }
 
 size_t Bidder::getMaxBid() { return maxBid; }
 
-void Bidder::setup() {
+void Bidder::setupInner() {
   size_t array_len = 3 * c_;
   const BIGNUM *bns[array_len];
   BIGNUM *H = BN_new();
@@ -79,11 +82,35 @@ void Bidder::setup() {
   EC_POINT_add(group, Com, Com, tmp, ctx);
 }
 
+/**
+ * @brief Use `TimeTracker` to wrap the `Inner` function for easy modification
+ * during reload
+ *
+ */
+void Bidder::setup() {
+  TimeTracker::getInstance().start(BIDDER_CATEGORY);
+  setupInner();
+  TimeTracker::getInstance().stop(BIDDER_CATEGORY);
+}
+
+/**
+ * @brief Return the value directly, the time can be ignored, and there is no
+ * need to use `TimeTracker` for timing
+ *
+ * @return const EC_POINT*
+ */
 const EC_POINT *Bidder::getCommitments() const { return Com; }
 
+/**
+ * @brief Return the reference directly, the time can be ignored, and there is
+ * no need to use `TimeTracker` for timing
+ *
+ * @return const std::vector<EC_POINT *>&
+ */
 const std::vector<EC_POINT *> &Bidder::getPubKeys() const { return pubKeys; }
 
-void Bidder::BESEncode(const std::vector<EC_POINT *> &BBpubKeys, size_t step) {
+void Bidder::BESEncodeInner(const std::vector<EC_POINT *> &BBpubKeys,
+                            size_t step) {
   BN_CTX *ctx = BN_CTX_new();
   EC_POINT *Y = EC_POINT_new(group);
   EC_POINT *firstHalfSum = EC_POINT_new(group);
@@ -113,8 +140,17 @@ void Bidder::BESEncode(const std::vector<EC_POINT *> &BBpubKeys, size_t step) {
   }
 }
 
+void Bidder::BESEncode(const std::vector<EC_POINT *> &BBpubKeys, size_t step) {
+  TimeTracker::getInstance().start(BIDDER_CATEGORY);
+  BESEncodeInner(BBpubKeys, step);
+  TimeTracker::getInstance().stop(BIDDER_CATEGORY);
+}
+
 const OT_S *Bidder::OTSend(size_t step, const OT_R1 &otr1) {
-  // FIXME: use gamma?
+  // FIXME: For convenience, let T1=g1, s=gamma, t=hash(gamma). This does not
+  // affect testing, but may affect security
+  TimeTracker::getInstance().start(BIDDER_CATEGORY);
+
   BIGNUM *s = BN_new();
   BIGNUM *t = BN_new();
   BIGNUM *bn = BN_new();
@@ -155,10 +191,13 @@ const OT_S *Bidder::OTSend(size_t step, const OT_R1 &otr1) {
   ot_s->C0 = C0;
   ot_s->C1 = C1;
 
+  TimeTracker::getInstance().stop(BIDDER_CATEGORY);
   return ot_s;
 }
 
 void Bidder::enterDeciderRound(size_t step) {
+  TimeTracker::getInstance().start(BIDDER_CATEGORY);
   inRaceFlag = d == 0 ? false : inRaceFlag;
   maxBid |= (1 << (c_ - step - 1));
+  TimeTracker::getInstance().stop(BIDDER_CATEGORY);
 }
